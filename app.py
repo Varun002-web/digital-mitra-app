@@ -19,14 +19,21 @@ st.title("🌾 Digital Mitra AI Hub")
 st.write("Bridging the Linguistic Gap for Rural India")
 st.write("---")
 
-# Language Selection
+# 🌐 Language Selection List
 languages = [
     "English", "Hindi (हिन्दी)", "Bengali (বাংলা)", "Marathi (मराठी)", 
     "Telugu (తెలుగు)", "Tamil (தமிழ்)", "Gujarati (ગુજરાતી)", "Urdu (اُردُو)", 
-    "Kannada (ಕನ್ನಡ)", "Odia (ଓଡ଼ିଆ)", "Malayalam (മലയാളം)", "Punjabi (ਪੰਜਾਬੀ)",
-    "Assamese (অসমীয়া)", "Maithili (मैथिली)", "Santali (សន្តាលី)", "Kashmiri (کأشُر)",
+    "Kannada (ಕನ್ನಡ)", "Odia (ଓଡ଼ିଆ)", "Malayalam (മലയാളം)", "Punjabi (ਪੰਜਾਬী)",
+    "Assamese (অসমीया)", "Maithili (मैथिली)", "Santali (សន្តាលី)", "Kashmiri (کأشُر)",
     "Nepali (नेपाली)", "Konkani (कोंकणी)", "Sindhi (सिन्धी)", "Dogri (डोगरी)", 
-    "Manipuri (মণিপুরী)", "Bodo (বড়ো)"]
+    "Manipuri (মণিপুরী)", "Bodo (বড়ো)"
+]
+
+# 👇 THIS IS THE DROPDOWN BOX (Added right at the top for easy access)
+selected_language = st.selectbox("🌐 Choose your language / भाषा चुनें", languages)
+
+st.write(f"App set to: **{selected_language}**")
+st.write("---")
 
 # Tab Layout for Voice or Document Submission
 tab1, tab2 = st.tabs(["🎙️ Talk to Mitra (Voice)", "📷 Scan Documents (OCR)"])
@@ -39,11 +46,11 @@ with tab1:
     if audio_file:
         st.success("Audio captured successfully!")
         # Trigger Intent Classifier Pipeline
-        st.info("Processing your voice context with Bhashini Voice AI...")
+        st.info(f"Processing your voice context in {selected_language} with Bhashini Voice AI...")
 
 with tab2:
     st.subheader("Upload or Snap ID / Land Records")
-    uploaded_image = st.camera_input("Take a photo of Aadhaar or Land Record Document")
+    uploaded_image = st.camera_input("Take a photo of Document or Land Record")
     
     if uploaded_image:
         image = Image.open(uploaded_image)
