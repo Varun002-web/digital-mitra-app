@@ -26,8 +26,7 @@ languages = [
     "Kannada (ಕನ್ನಡ)", "Odia (ଓଡ଼ିଆ)", "Malayalam (മലയാളം)", "Punjabi (ਪੰਜਾਬੀ)",
     "Assamese (অসমীয়া)", "Maithili (मैथिली)", "Santali (សន្តាលី)", "Kashmiri (کأشُر)",
     "Nepali (नेपाली)", "Konkani (कोंकणी)", "Sindhi (सिन्धी)", "Dogri (डोगरी)", 
-    "Manipuri (মণিপুরী)", "Bodo (বড়ো)"
-]
+    "Manipuri (মণিপুরী)", "Bodo (বড়ো)"]
 
 # Tab Layout for Voice or Document Submission
 tab1, tab2 = st.tabs(["🎙️ Talk to Mitra (Voice)", "📷 Scan Documents (OCR)"])
