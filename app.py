@@ -20,7 +20,14 @@ st.write("Bridging the Linguistic Gap for Rural India")
 st.write("---")
 
 # Language Selection
-language = st.selectbox("Select Dialect / भाषा चुनें", ["Marathi (मराठी)", "Hindi (हिन्दी)", "Telugu (తెలుగు)", "English"])
+languages = [
+    "English", "Hindi (हिन्दी)", "Bengali (বাংলা)", "Marathi (मराठी)", 
+    "Telugu (తెలుగు)", "Tamil (தமிழ்)", "Gujarati (ગુજરાતી)", "Urdu (اُردُو)", 
+    "Kannada (ಕನ್ನಡ)", "Odia (ଓଡ଼ିଆ)", "Malayalam (മലയാളം)", "Punjabi (ਪੰਜਾਬੀ)",
+    "Assamese (অসমীয়া)", "Maithili (मैथिली)", "Santali (សន្តាលី)", "Kashmiri (کأشُر)",
+    "Nepali (नेपाली)", "Konkani (कोंकणी)", "Sindhi (सिन्धी)", "Dogri (डोगरी)", 
+    "Manipuri (মণিপুরী)", "Bodo (বড়ো)"
+]
 
 # Tab Layout for Voice or Document Submission
 tab1, tab2 = st.tabs(["🎙️ Talk to Mitra (Voice)", "📷 Scan Documents (OCR)"])
