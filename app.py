@@ -31,12 +31,30 @@ st.title("🌾 Grameena Seva AI Hub")
 st.write("Bridging the Linguistic Gap for Rural India")
 st.write("---")
 
-# Comprehensive Regional Indian Language Array
+# Comprehensive Regional Indian Language Dictionary Map
 languages_map = {
-    "Hindi (हिन्दी)": "hin_Deva", "Telugu (తెలుగు)": "tel_Telu", "Tamil (தமிழ்)": "tam_Taml",
-    "Marathi (मराठी)": "mar_Deva", "Bengali (বাংলা)": "ben_Beng", "Gujarati (ગુજરાતી)": "guj_Gujr",
-    "Kannada (ಕನ್ನಡ)": "kan_Knda", "Malayalam (മലയാളം)": "mal_Mlym", "Punjabi (ਪੰਜਾਬੀ)": "pan_Guru",
-    "English": "eng_Latn"
+    "English": "eng_Latn",
+    "Hindi (हिन्दी)": "hin_Deva",
+    "Bengali (বাংলা)": "ben_Beng",
+    "Marathi (मराठी)": "mar_Deva", 
+    "Telugu (తెలుగు)": "tel_Telu",
+    "Tamil (தமிழ்)": "tam_Taml",
+    "Gujarati (ગુજરાતી)": "guj_Gujr",
+    "Urdu (اُردُو)": "urd_Arab", 
+    "Kannada (ಕನ್ನಡ)": "kan_Knda",
+    "Odia (ଓଡ଼ିଆ)": "ory_Orya",
+    "Malayalam (മലയാളം)": "mal_Mlym",
+    "Punjabi (ਪੰਜਾਬੀ)": "pan_Guru",
+    "Assamese (অসমীয়া)": "asm_Asme",
+    "Maithili (मैथिली)": "mai_Deva",
+    "Santali (সន្តាលী)": "sat_Olch",
+    "Kashmiri (کأشُر)": "kas_Arab",
+    "Nepali (नेपाली)": "nep_Deva",
+    "Konkani (कोंकणी)": "kok_Deva",
+    "Sindhi (सिन्धी)": "snd_Arab",
+    "Dogri (डोगरी)": "doi_Deva", 
+    "Manipuri (মণিপুরী)": "mni_Beng",
+    "Bodo (বড়ো)": "brx_Deva"
 }
 
 selected_ui_lang = st.selectbox("🌐 Choose your language / भाषा चुनें", list(languages_map.keys()))
