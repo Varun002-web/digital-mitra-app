@@ -98,18 +98,17 @@ def dispatch_grievance_email(original_lang, transcribed_text):
     msg.attach(MIMEText(body, 'plain'))
     
     try:
-        # Initializing secure network connection over standard TLS port 587
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
+        # Initializing a direct secure SSL connection over port 465 to bypass cloud blocks
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(sender_email, sender_password)
         text = msg.as_string()
         server.sendmail(sender_email, receiver_email, text)
         server.quit()
         return True
     except Exception as e:
-        print(f"SMTP Layer error logs: {e}")
+        # This print statement will stream the real server rejection error to your Streamlit logs
+        st.sidebar.error(f"Mail Server Error: {e}")
         return False
-
 with tab1:
     st.subheader("Describe your problem or need:")
     audio_file = st.audio_input("Press record and speak naturally (e.g., 'Heavy rains ruined my crops')")
