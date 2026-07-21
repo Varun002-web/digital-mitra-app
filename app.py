@@ -6,7 +6,6 @@ import speech_recognition as sr
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from PIL import Image
-from pptx import Presentation
 
 # --- SPEECH RECOGNITION ENGINE ---
 def transcribe_actual_audio(audio_bytes, target_language_code):
@@ -162,57 +161,3 @@ with tab2:
         st.image(image, caption="Uploaded Document", use_container_width=True)
         st.info("Extracting data via Mobile OCR Engine...")
 
-# --- POWERPOINT DECK GENERATOR ---
-def build_pitch_deck():
-    """Generates an in-memory PowerPoint presentation using python-pptx."""
-    prs = Presentation()
-    
-    # Slide 1: Title
-    slide = prs.slides.add_slide(prs.slide_layouts[0])
-    slide.shapes.title.text = "🌾 Grameena Seva AI Hub"
-    slide.placeholders[1].text = "Bridging the Linguistic Gap for Rural Indian Farmers\nCreated by Varun Sagar & Team"
-    
-    # Slide 2: Problem Statement
-    slide = prs.slides.add_slide(prs.slide_layouts[1])
-    slide.shapes.title.text = "The Core Problem Statement"
-    tf = slide.placeholders[1].text_frame
-    tf.text = "• 65%+ of rural India relies heavily on regional native languages."
-    tf.add_paragraph().text = "• Digital grievance channels remain heavily restricted to English-centric layouts."
-    tf.add_paragraph().text = "• Keyboard barriers and administrative lag prevent simple problem resolution workflows."
-    
-    # Slide 3: Solution Framework
-    slide = prs.slides.add_slide(prs.slide_layouts[1])
-    slide.shapes.title.text = "Our Solution Framework"
-    tf = slide.placeholders[1].text_frame
-    tf.text = "• Native Audio Layer: Farmers speak naturally into the regional interface."
-    tf.add_paragraph().text = "• Speech-to-Text AI Pipeline: Dynamically converts acoustic data in real time."
-    tf.add_paragraph().text = "• Verified Transcripts: Displays output for validation before dispatch."
-    tf.add_paragraph().text = "• Automated SMTP Delivery: Securely emails reports directly to official inboxes."
-
-    # Slide 4: Future Growth Focus
-    slide = prs.slides.add_slide(prs.slide_layouts[1])
-    slide.shapes.title.text = "Future Deployment Focus"
-    tf = slide.placeholders[1].text_frame
-    tf.text = "• OCR Integration: Real-time physical land record camera uploads."
-    tf.add_paragraph().text = "• Bi-Directional Alerts: Re-translating officer replies back into native audio."
-    tf.add_paragraph().text = "• Offline Gateway Fallback: Cellular SMS communications infrastructure."
-
-    binary_output = io.BytesIO()
-    prs.save(binary_output)
-    binary_output.seek(0)
-    return binary_output
-
-# --- DOWNLOAD DASHBOARD AT BOTTOM ---
-st.write("---")
-st.subheader("📊 Presentation Exporter Dashboard")
-st.write("Generate and download your high-impact project presentation deck below:")
-
-presentation_data = build_pitch_deck()
-
-st.download_button(
-    label="📥 Download Pitch Deck (.pptx)",
-    data=presentation_data,
-    file_name="Grameena_Seva_Pitch_Deck.pptx",
-    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    use_container_width=True
-)
