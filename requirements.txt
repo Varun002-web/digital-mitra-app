@@ -1,4 +1,5 @@
-PyMuPDF
-Pillow
+streamlit
 speechrecognition
 pydub
+python-pptx
+pillow
