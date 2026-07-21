@@ -59,8 +59,81 @@ languages_map = {
     "Urdu (اُردُو)": "ur-IN"
 }
 
+# UI Labels Translation Dictionary
+ui_translations = {
+    "English": {
+        "name_label": "👤 Enter Full Name *",
+        "address_label": "🏠 Enter Village & Address *",
+        "record_label": "Press record and speak naturally in your chosen language",
+        "submit_btn": "🚀 Submit Grievance to Government Portal"
+    },
+    "Hindi (हिन्दी)": {
+        "name_label": "👤 पूरा नाम दर्ज करें *",
+        "address_label": "🏠 गांव और पता दर्ज करें *",
+        "record_label": "रिकॉर्ड दबाएं और अपनी भाषा में बोलें",
+        "submit_btn": "🚀 शिकायत दर्ज करें"
+    },
+    "Telugu (తెలుగు)": {
+        "name_label": "👤 పూర్తి పేరు నమోదు చేయండి *",
+        "address_label": "🏠 గ్రామం మరియు చిరునామా నమోదు చేయండి *",
+        "record_label": "రైటు బటన్ నొక్కి మీ మాట్లాడండి",
+        "submit_btn": "🚀 ఫిర్యాదును సమర్పించండి"
+    },
+    "Tamil (தமிழ்)": {
+        "name_label": "👤 முழு பெயரை உள்ளிடவும் *",
+        "address_label": "🏠 கிராமம் மற்றும் முகவரியை உள்ளிடவும் *",
+        "record_label": "பதிவு செய்து பேசுங்கள்",
+        "submit_btn": "🚀 புகாரைச் சமர்ப்பிக்கவும்"
+    },
+    "Kannada (ಕನ್ನಡ)": {
+        "name_label": "👤 ಪೂರ್ಣ ಹೆಸರನ್ನು ನಮೂದಿಸಿ *",
+        "address_label": "🏠 ಗ್ರಾಮ ಮತ್ತು ವಿಳಾಸವನ್ನು ನಮೂದಿಸಿ *",
+        "record_label": "ರೆಕಾರ್ಡ್ ಒತ್ತಿ ಮತ್ತು ಮಾತನಾಡಿ",
+        "submit_btn": "🚀 ದೂರು ಸಲ್ಲಿಸಿ"
+    },
+    "Marathi (मराठी)": {
+        "name_label": "👤 पूर्ण नाव प्रविष्ट करा *",
+        "address_label": "🏠 गाव आणि पत्ता प्रविष्ट करा *",
+        "record_label": "रेकॉर्ड दाबा आणि बोला",
+        "submit_btn": "🚀 तक्रार नोंदवा"
+    },
+    "Bengali (বাংলা)": {
+        "name_label": "👤 সম্পূর্ণ নাম লিখুন *",
+        "address_label": "🏠 গ্রাম ও ঠিকানা লিখুন *",
+        "record_label": "রেকর্ড চাপুন এবং বলুন",
+        "submit_btn": "🚀 অভিযোগ জমা দিন"
+    },
+    "Gujarati (ગુજરાતી)": {
+        "name_label": "👤 પૂરું નામ દાખલ કરો *",
+        "address_label": "🏠 ગામ અને સરનામું દાખલ કરો *",
+        "record_label": "રેકોર્ડ દબાવો અને બોલો",
+        "submit_btn": "🚀 ફરિયાદ સબમિટ કરો"
+    },
+    "Malayalam (മലയാളം)": {
+        "name_label": "👤 പൂർണ്ണ പേര് നൽകുക *",
+        "address_label": "🏠 ഗ്രാമവും മേൽവിലാസവും നൽകുക *",
+        "record_label": "റെക്കോർഡ് ചെയ്ത് സംസാരിക്കുക",
+        "submit_btn": "🚀 പരാതി സമർപ്പിക്കുക"
+    },
+    "Punjabi (ਪੰਜਾਬੀ)": {
+        "name_label": "👤 ਪੂਰਾ ਨਾਮ ਦਰਜ ਕਰੋ *",
+        "address_label": "🏠 ਪਿੰਡ ਅਤੇ ਪਤਾ ਦਰਜ ਕਰੋ *",
+        "record_label": "ਰਿਕਾਰਡ ਦਬਾਓ ਅਤੇ ਬੋਲੋ",
+        "submit_btn": "🚀 ਸ਼ਿਕਾਇਤ ਦਰਜ ਕਰੋ"
+    },
+    "Urdu (اُردُو)": {
+        "name_label": "👤 پورا نام درج کریں *",
+        "address_label": "🏠 گاؤں اور پتہ درج کریں *",
+        "record_label": "ریکارڈ بٹن دبائیں اور بولیں",
+        "submit_btn": "🚀 شکایت درج کریں"
+    }
+}
+
 selected_ui_lang = st.selectbox("🌐 Choose your language / भाषा चुनें", list(languages_map.keys()))
 lang_code = languages_map[selected_ui_lang]
+
+# Fetch the dynamic labels for the active language selection
+labels = ui_translations.get(selected_ui_lang, ui_translations["English"])
 
 st.write(f"App set to: **{selected_ui_lang}** (Code: `{lang_code}`)")
 st.write("---")
@@ -115,12 +188,14 @@ def dispatch_grievance_email(original_lang, transcribed_text, citizen_name, citi
 # --- TAB 1: VOICE GRIEVANCE FORM ---
 with tab1:
     st.subheader("📝 Citizen Information Form")
-    farmer_name = st.text_input("👤 Enter Full Name / पूरा नाम दर्ज करें *")
-    farmer_address = st.text_area("🏠 Enter Village & Address / गांव और पता दर्ज करें *", height=70)
+    
+    # Dynamic language input labels
+    farmer_name = st.text_input(labels["name_label"])
+    farmer_address = st.text_area(labels["address_label"], height=70)
     
     st.write("---")
     st.subheader("🎙️ Record Your Grievance")
-    audio_file = st.audio_input("Press record and speak naturally in your chosen language")
+    audio_file = st.audio_input(labels["record_label"])
     
     if audio_file:
         st.success("Audio captured successfully!")
@@ -136,7 +211,7 @@ with tab1:
         
         # Validation Gate Check
         if farmer_name.strip() and farmer_address.strip():
-            if st.button("🚀 Submit Grievance to Government Portal"):
+            if st.button(labels["submit_btn"]):
                 with st.spinner("Routing alert to the official department..."):
                     email_status = dispatch_grievance_email(
                         selected_ui_lang, 
@@ -160,4 +235,3 @@ with tab2:
         image = Image.open(uploaded_image)
         st.image(image, caption="Uploaded Document", use_container_width=True)
         st.info("Extracting data via Mobile OCR Engine...")
-
