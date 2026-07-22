@@ -12,8 +12,8 @@ from gtts import gTTS
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Supported model configuration for google-generativeai
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Using 'gemini-1.5-flash-latest' avoids 404 version mapping issues on API v1beta
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
 except Exception as e:
     st.error(f"Gemini Configuration Error: {e}")
 
@@ -85,12 +85,12 @@ def process_citizen_input(text_input, language_name):
         fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
         return "FALLBACK_GRIEVANCE", fallback_msg
 
-# --- PAGE CONFIGURATION & LIGHTISH-DARK THEME WITH ANIMATIONS ---
+# --- PAGE CONFIGURATION & DARK THEME WITH HIGH-CONTRAST INPUTS ---
 st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="centered")
 
 st.markdown("""
     <style>
-    /* Global Background - Slate Dark Tone */
+    /* Global App Background */
     .stApp {
         background-color: #0F172A;
         color: #F8FAFC;
@@ -180,7 +180,25 @@ st.markdown("""
         }
     }
 
-    /* Primary Interactive Submit Button */
+    /* FIX INVISIBLE TEXT IN INPUTS & SELECTBOXES */
+    div[data-baseweb="input"], div[data-baseweb="select"] {
+        background-color: #1E293B !important;
+        border-radius: 10px !important;
+    }
+    input {
+        color: #FFFFFF !important;
+        background-color: #1E293B !important;
+    }
+    div[data-baseweb="select"] * {
+        color: #FFFFFF !important;
+        background-color: #1E293B !important;
+    }
+    label {
+        color: #E2E8F0 !important;
+        font-weight: 600;
+    }
+
+    /* Submit Button Styling */
     .stButton>button {
         width: 100%;
         height: 60px;
@@ -196,18 +214,6 @@ st.markdown("""
     .stButton>button:hover {
         transform: translateY(-2px);
         box-shadow: 0px 8px 20px rgba(245, 158, 11, 0.6);
-    }
-
-    /* Input Field Overrides for Dark Theme */
-    div[data-baseweb="input"] {
-        background-color: #0F172A !important;
-        border-radius: 10px;
-    }
-    input {
-        color: #F8FAFC !important;
-    }
-    label {
-        color: #E2E8F0 !important;
     }
     </style>
     """, unsafe_allow_html=True)
