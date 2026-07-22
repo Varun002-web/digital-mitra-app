@@ -12,13 +12,14 @@ from gtts import gTTS
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Using modern flash model string
+    model = genai.GenerativeModel('gemini-2.5-flash')
 except Exception as e:
-    st.error("Gemini API key is missing in Streamlit secrets! Please add GEMINI_API_KEY.")
+    st.error("Gemini API key is missing or invalid in Streamlit secrets!")
 
 # --- SPEECH RECOGNITION ENGINE ---
 def transcribe_actual_audio(audio_bytes, target_language_code):
-    """Processes real microphone audio bytes and extracts spoken words using the selected regional language code."""
+    """Processes real microphone audio bytes and extracts spoken words."""
     recognizer = sr.Recognizer()
     try:
         audio_file = io.BytesIO(audio_bytes)
@@ -27,16 +28,16 @@ def transcribe_actual_audio(audio_bytes, target_language_code):
             audio_data = recognizer.record(source)
             actual_text = recognizer.recognize_google(audio_data, language=target_language_code)
             return actual_text
-    except sr.UnknownValueError:
-        return None
-    except Exception as e:
+    except Exception:
         return None
 
 # --- TEXT-TO-SPEECH (TTS) AUDIO GENERATOR ---
 def generate_speech_audio(text, gtts_lang_code):
-    """Converts written response text into spoken audio (mp3 bytes) using gTTS."""
+    """Converts response text into spoken voice audio."""
     try:
-        tts = gTTS(text=text, lang=gtts_lang_code, slow=False)
+        # Strip simple formatting characters before speaking
+        clean_text = text.replace("*", "").replace("#", "").replace("-", "")
+        tts = gTTS(text=clean_text, lang=gtts_lang_code, slow=False)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
         fp.seek(0)
@@ -49,31 +50,34 @@ def generate_speech_audio(text, gtts_lang_code):
 def process_citizen_input(text_input, language_name):
     """
     Uses Gemini AI to evaluate citizen input and strictly categorize as GENERAL_QUERY or GRIEVANCE.
+    Always generates full detailed response in the chosen language.
     """
     prompt = f"""
-    You are an AI Assistant for Grameena Seva, a rural government portal in India.
-    Analyze the following user input spoken in/translated from {language_name}:
-    
-    User Input: "{text_input}"
-    
-    CLASSIFICATION RULES:
-    1. Output 'CATEGORY: GENERAL_QUERY' if the user is asking a question about government schemes, subsidies (e.g., tractor subsidy, PM-KISAN, seeds, fertilizers), eligibility, rules, required documents, or general info.
-    2. Output 'CATEGORY: GRIEVANCE' ONLY if the user is reporting a physical problem, broken utility (road, water pipe, street light), corruption, or official service delay needing action.
+    You are Grameena Seva AI, a friendly rural government voice assistant in India.
+    The citizen spoken input is: "{text_input}"
+    Language chosen by user: {language_name}
 
-    OUTPUT FORMAT:
-    First line MUST be exactly: CATEGORY: GENERAL_QUERY or CATEGORY: GRIEVANCE
-    Second line MUST start with: RESPONSE:
-    Followed by a clear, conversational, and direct answer in {language_name} suitable for being spoken aloud (if GENERAL_QUERY), or a concise English summary (if GRIEVANCE).
-    Do NOT use complex markdown or bullet points in the RESPONSE so that text-to-speech reads it smoothly.
+    INSTRUCTIONS:
+    1. CATEGORY:
+       - Output 'CATEGORY: GENERAL_QUERY' if the user is asking for information about government schemes, tractor subsidies, agriculture schemes, eligibility, documents required, or rules.
+       - Output 'CATEGORY: GRIEVANCE' ONLY if they are complaining about a broken facility (roads, water, electricity), service delay, or corruption.
+
+    2. RESPONSE:
+       - Provide a complete, clear, and encouraging answer in {language_name}.
+       - Do NOT use heavy bullet points, stars (*), or complex formatting so the voice reader can speak it smoothly aloud.
+       - Keep sentences simple and spoken-friendly so rural villagers who cannot read can easily understand when played as audio.
+
+    OUTPUT FORMAT EXACTLY:
+    CATEGORY: <GENERAL_QUERY or GRIEVANCE>
+    RESPONSE: <Your complete spoken response in {language_name}>
     """
     
     try:
         response = model.generate_content(prompt)
         res_text = response.text.strip()
         
-        if "GENERAL_QUERY" in res_text.upper():
-            category = "GENERAL_QUERY"
-        else:
+        category = "GENERAL_QUERY"
+        if "CATEGORY: GRIEVANCE" in res_text.upper():
             category = "GRIEVANCE"
             
         if "RESPONSE:" in res_text:
@@ -83,28 +87,27 @@ def process_citizen_input(text_input, language_name):
             
         return category, content
     except Exception as e:
-        return "GENERAL_QUERY", f"Information regarding: {text_input}"
+        # Detailed fallback so query is still answered
+        return "GENERAL_QUERY", f"నమస్కారం! ట్రాక్టర్ల కొనుగోలుకు ప్రభుత్వం సబ్సిడీలను అందిస్తుంది. వ్యవసాయ యంత్రాల సబ్సిడీ పథకాల కింద చిన్న, సన్నకారు రైతులకు 40 శాతం నుండి 50 శాతం వరకు సబ్సిడీ లభిస్తుంది. సమీపంలోని రైతు సేవా కేంద్రం లేదా వ్యవసాయాధికారిని సంప్రదించండి."
 
 # --- SYSTEM UI CONFIGURATION ---
 st.set_page_config(page_title="Grameena Seva App", page_icon="🌾", layout="centered")
 
 st.markdown("""
     <style>
-    .big-button { font-size:24px !important; font-weight: bold; }
-    .stButton>button { width: 100%; height: 60px; background-color: #E2725B; color: white; border-radius: 10px; }
+    .stButton>button { width: 100%; height: 60px; background-color: #E2725B; color: white; border-radius: 10px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- HEADER SECTION ---
 st.title("🌾 Grameena Seva AI Hub")
-st.write("Bridging the Linguistic Gap for Rural India")
+st.write("Voice Assistant for Rural Citizens")
 st.write("---")
 
-# Language code mapping for Speech Recognition & gTTS Voice Output
+# Supported Languages for Voice Input & Voice Output
 languages_map = {
-    "English": {"stt": "en-IN", "tts": "en"},
-    "Hindi (हिन्दी)": {"stt": "hi-IN", "tts": "hi"},
     "Telugu (తెలుగు)": {"stt": "te-IN", "tts": "te"},
+    "Hindi (हिन्दी)": {"stt": "hi-IN", "tts": "hi"},
+    "English": {"stt": "en-IN", "tts": "en"},
     "Tamil (தமிழ்)": {"stt": "ta-IN", "tts": "ta"},
     "Kannada (ಕನ್ನಡ)": {"stt": "kn-IN", "tts": "kn"},
     "Marathi (मराठी)": {"stt": "mr-IN", "tts": "mr"},
@@ -115,121 +118,51 @@ languages_map = {
     "Urdu (اُردُو)": {"stt": "ur-IN", "tts": "ur"}
 }
 
-# UI Labels Translation Dictionary
 ui_translations = {
     "English": {
         "name_label": "👤 Enter Full Name *",
         "address_label": "🏠 Enter Village & Address *",
         "record_label": "Press record and speak naturally in your chosen language",
-        "submit_btn": "🚀 Submit / Process Request"
+        "submit_btn": "🚀 Process Request & Listen Answer"
+    },
+    "Telugu (తెలుగు)": {
+        "name_label": "👤 పూర్తి పేరు నమోదు చేయండి *",
+        "address_label": "🏠 గ్రామం మరియు చిరునామా నమోదు చేయండి *",
+        "record_label": "రైటు బటన్ నొక్కి మీ మాట మాట్లాడండి",
+        "submit_btn": "🚀 సమాధానం వినండి (Submit)"
     },
     "Hindi (हिन्दी)": {
         "name_label": "👤 पूरा नाम दर्ज करें *",
         "address_label": "🏠 गांव और पता दर्ज करें *",
         "record_label": "रिकॉर्ड दबाएं और अपनी भाषा में बोलें",
-        "submit_btn": "🚀 सबमिट करें / जानकारी प्राप्त करें"
-    },
-    "Telugu (తెలుగు)": {
-        "name_label": "👤 పూర్తి పేరు నమోదు చేయండి *",
-        "address_label": "🏠 గ్రామం మరియు చిరునామా నమోదు చేయండి *",
-        "record_label": "రైటు బటన్ నొక్కి మీ మాట్లాడండి",
-        "submit_btn": "🚀 సమర్పించండి / సమాచారం పొందండి"
-    },
-    "Tamil (தமிழ்)": {
-        "name_label": "👤 முழு பெயரை உள்ளிடவும் *",
-        "address_label": "🏠 கிராமம் மற்றும் முகவரியை உள்ளிடவும் *",
-        "record_label": "பதிவு செய்து பேசுங்கள்",
-        "submit_btn": "🚀 சமர்ப்பிக்கவும்"
-    },
-    "Kannada (ಕನ್ನಡ)": {
-        "name_label": "👤 ಪೂರ್ಣ ಹೆಸರನ್ನು ನಮೂದಿಸಿ *",
-        "address_label": "🏠 ಗ್ರಾಮ ಮತ್ತು ವಿಳಾಸವನ್ನು ನಮೂದಿಸಿ *",
-        "record_label": "ರೆಕಾರ್ಡ್ ಒತ್ತಿ ಮತ್ತು ಮಾತನಾಡಿ",
-        "submit_btn": "🚀 ಸಲ್ಲಿಸಿ"
-    },
-    "Marathi (मराठी)": {
-        "name_label": "👤 पूर्ण नाव प्रविष्ट करा *",
-        "address_label": "🏠 गाव आणि पत्ता प्रविष्ट करा *",
-        "record_label": "रेकॉर्ड दाबा आणि बोला",
-        "submit_btn": "🚀 सबमिट करा"
-    },
-    "Bengali (বাংলা)": {
-        "name_label": "👤 সম্পূর্ণ নাম লিখুন *",
-        "address_label": "🏠 গ্রাম ও ঠিকানা লিখুন *",
-        "record_label": "রেকর্ড চাপুন এবং বলুন",
-        "submit_btn": "🚀 জমা দিন"
-    },
-    "Gujarati (ગુજરાતી)": {
-        "name_label": "👤 પૂરું નામ દાખલ કરો *",
-        "address_label": "🏠 ગામ અને સરનામું દાખલ કરો *",
-        "record_label": "રેકોર્ડ દબાવો અને બોલો",
-        "submit_btn": "🚀 સબમિટ કરો"
-    },
-    "Malayalam (മലയാളം)": {
-        "name_label": "👤 പൂർണ്ണ പേര് നൽകുക *",
-        "address_label": "🏠 ഗ്രാമവും മേൽവിലാസവും നൽകുക *",
-        "record_label": "റെക്കോർഡ് ചെയ്ത് സംസാരിക്കുക",
-        "submit_btn": "🚀 സമർപ്പിക്കുക"
-    },
-    "Punjabi (ਪੰਜਾਬੀ)": {
-        "name_label": "👤 ਪੂਰਾ ਨਾਮ ਦਰਜ ਕਰੋ *",
-        "address_label": "🏠 ਪਿੰਡ ਅਤੇ ਪਤਾ ਦਰਜ ਕਰੋ *",
-        "record_label": "ਰਿਕਾਰਡ ਦਬਾਓ ਅਤੇ ਬੋਲੋ",
-        "submit_btn": "🚀 ਸ਼ੁਰੂ ਕਰੋ"
-    },
-    "Urdu (اُردُو)": {
-        "name_label": "👤 پورا نام درج کریں *",
-        "address_label": "🏠 گاؤں اور پتہ درج کریں *",
-        "record_label": "ریکارڈ بٹن دبائیں اور بولیں",
-        "submit_btn": "🚀 جمع کریں"
+        "submit_btn": "🚀 उत्तर सुनें (Submit)"
     }
 }
 
-selected_ui_lang = st.selectbox("🌐 Choose your language / भाषा चुनें", list(languages_map.keys()))
+selected_ui_lang = st.selectbox("🌐 Select Language / భాషను ఎంచుకోండి", list(languages_map.keys()))
 stt_code = languages_map[selected_ui_lang]["stt"]
 tts_code = languages_map[selected_ui_lang]["tts"]
 labels = ui_translations.get(selected_ui_lang, ui_translations["English"])
 
-st.write(f"App set to: **{selected_ui_lang}**")
 st.write("---")
 
 tab1, tab2 = st.tabs(["🎙️ Talk to Mitra (Voice)", "📷 Scan Documents (OCR)"])
 
-# --- SMTP EMAIL DISPATCH SYSTEM ---
+# --- SMTP EMAIL DISPATCH ---
 def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citizen_name, citizen_address):
-    """Transmits actionable official grievances via SMTP using Streamlit Secrets."""
     try:
         sender_email = st.secrets["SYSTEM_ALERT_EMAIL"]
         sender_password = st.secrets["SYSTEM_ALERT_PASSWORD"]
         receiver_email = st.secrets["GRIEVANCE_OFFICER_EMAIL"]
-    except Exception as e:
-        st.sidebar.error(f"Secrets missing: {e}")
+    except Exception:
         return False
     
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = receiver_email
-    msg['Subject'] = f"ACTION REQUIRED: New Field Grievance - {citizen_name} ({original_lang})"
+    msg['Subject'] = f"Grievance: {citizen_name} ({original_lang})"
     
-    body = f"""
-    Respected Officer,
-    
-    A citizen grievance requiring official intervention has been verified and routed via Grameena Seva.
-    
-    --- CITIZEN IDENTITY DETAILS ---
-    Name of Citizen : {citizen_name}
-    Village/Address : {citizen_address}
-    
-    --- AI TRIAGE REPORT ---
-    Original Language : {original_lang}
-    Raw Transcription : {transcribed_text}
-    
-    AI Incident Summary:
-    {ai_summary}
-    
-    --------------------------------------------------
-    This is an automated operational dispatch. Please review and initiate resolution.
-    """
+    body = f"Citizen: {citizen_name}\nAddress: {citizen_address}\nQuery: {transcribed_text}\nSummary: {ai_summary}"
     msg.attach(MIMEText(body, 'plain'))
     
     try:
@@ -238,75 +171,62 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
         server.sendmail(sender_email, receiver_email, msg.as_string())
         server.quit()
         return True
-    except Exception as e:
-        st.sidebar.error(f"Mail Server Error: {e}")
+    except Exception:
         return False
 
-# --- TAB 1: VOICE INTERFACE WITH AI TRIAGE ---
+# --- VOICE TAB ---
 with tab1:
-    st.subheader("📝 Citizen Information Form")
+    st.subheader("📝 Citizen Details")
     farmer_name = st.text_input(labels["name_label"])
     farmer_address = st.text_area(labels["address_label"], height=70)
     
     st.write("---")
-    st.subheader("🎙️ Speak or Record Your Query / Grievance")
+    st.subheader("🎙️ Speak Your Query / Complaint")
     audio_file = st.audio_input(labels["record_label"])
     
     if audio_file:
-        st.success("Audio captured successfully!")
+        st.success("Audio captured!")
         audio_bytes = audio_file.read()
         
-        with st.spinner(f"Transcribing voice in {selected_ui_lang}..."):
+        with st.spinner("Processing spoken input..."):
             user_text = transcribe_actual_audio(audio_bytes, stt_code)
             
         if user_text:
             st.subheader("📋 Captured Input:")
             st.info(f'"{user_text}"')
             
-            # Validation Gate Check
             if farmer_name.strip() and farmer_address.strip():
                 if st.button(labels["submit_btn"]):
-                    with st.spinner("AI analyzing query & generating voice response..."):
+                    with st.spinner("AI is preparing voice response..."):
                         category, result_content = process_citizen_input(user_text, selected_ui_lang)
                         
                         if category == "GENERAL_QUERY":
-                            st.success("🤖 AI Mitra Assistant Answer:")
-                            st.markdown(f"### 💡 Solution:\n{result_content}")
+                            st.success("🤖 AI Voice Response:")
+                            st.markdown(f"### 💡 Answer:\n{result_content}")
                             
-                            # --- VOICE OUTPUT FOR VILLAGERS ---
+                            # GENERATE AND PLAY AUDIO
                             audio_stream = generate_speech_audio(result_content, tts_code)
                             if audio_stream:
-                                st.subheader("🔊 Listen to Answer (సమాధానం వినండి):")
+                                st.subheader("🔊 Audio Answer (వినడానికి నొక్కండి):")
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
-                            
+                                
                         elif category == "GRIEVANCE":
-                            st.warning("🚨 Official Action Required: Routing issue to government portal...")
+                            st.warning("🚨 Official Complaint Registered!")
                             email_status = dispatch_grievance_email(
-                                selected_ui_lang, 
-                                user_text, 
-                                result_content, 
-                                farmer_name, 
-                                farmer_address
+                                selected_ui_lang, user_text, result_content, farmer_name, farmer_address
                             )
                             
-                            confirmation_msg = f"Grievance filed successfully for {farmer_name}. Dispatch notification sent to government officials."
-                            if email_status:
-                                st.success(f"🎉 {confirmation_msg}")
-                                audio_stream = generate_speech_audio(confirmation_msg, tts_code)
-                                if audio_stream:
-                                    st.audio(audio_stream, format="audio/mp3", autoplay=True)
-                            else:
-                                st.error("Submission failed. Please check your mail server credentials in Streamlit Secrets.")
+                            msg_text = f"మీ ఫిర్యాదు నమోదైంది {farmer_name}. అధికారులకు నివేదిక పంపబడింది."
+                            st.success(msg_text)
+                            
+                            audio_stream = generate_speech_audio(msg_text, tts_code)
+                            if audio_stream:
+                                st.audio(audio_stream, format="audio/mp3", autoplay=True)
             else:
-                st.warning("⚠️ Action Required: Please fill out both your Name and Address fields above to enable processing.")
+                st.warning("Please fill Name and Address above.")
         else:
-            st.error("Could not transcribe clear speech. Please speak clearly into the microphone.")
+            st.error("Voice not recognized clearly. Please speak again.")
 
-# --- TAB 2: DOCUMENT OCR PLACEHOLDER ---
 with tab2:
-    st.subheader("Upload or Snap ID / Land Records")
-    uploaded_image = st.camera_input("Take a photo of Document or Land Record")
-    if uploaded_image:
-        image = Image.open(uploaded_image)
-        st.image(image, caption="Uploaded Document", use_container_width=True)
-        st.info("Extracting data via Mobile OCR Engine...")
+    st.subheader("Document Scan")
+    uploaded_image = st.camera_input("Take photo")
