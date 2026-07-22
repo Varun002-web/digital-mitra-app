@@ -6,28 +6,70 @@ import speech_recognition as sr
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from PIL import Image
+import google.generativeai as genai
+
+# --- INITIALIZE GEMINI AI CLIENT ---
+try:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except Exception as e:
+    st.error("Gemini API key is missing in Streamlit secrets! Please add GEMINI_API_KEY.")
 
 # --- SPEECH RECOGNITION ENGINE ---
 def transcribe_actual_audio(audio_bytes, target_language_code):
     """Processes real microphone audio bytes and extracts spoken words using the selected regional language code."""
     recognizer = sr.Recognizer()
-    
     try:
         audio_file = io.BytesIO(audio_bytes)
         with sr.AudioFile(audio_file) as source:
             recognizer.adjust_for_ambient_noise(source, duration=0.5)
             audio_data = recognizer.record(source)
-            
-            # Pass selected regional language code (e.g. 'hi-IN', 'te-IN') to Google Speech engine
             actual_text = recognizer.recognize_google(audio_data, language=target_language_code)
-            return f"Grievance: {actual_text}"
-            
+            return actual_text
     except sr.UnknownValueError:
-        return "Grievance Status: Audio captured, but the AI could not clearly identify the spoken words. Please speak closer to your microphone."
-    except sr.RequestError as e:
-        return f"Speech Core Interruption: Network connection error ({e}). Please check your internet connection."
+        return None
     except Exception as e:
-        return f"Processing Error: Could not parse audio format. Ensure your recording contains clear voice input."
+        return None
+
+# --- AI TRIAGE & RESPONSE CORE ---
+def process_citizen_input(text_input, language_name):
+    """
+    Uses Gemini AI to evaluate citizen input:
+    Returns (category, response_text)
+    category: 'GRIEVANCE' or 'GENERAL_QUERY'
+    """
+    prompt = f"""
+    You are an AI Assistant for Grameena Seva, a rural government portal in India.
+    Analyze the following user input spoken in/translated from {language_name}:
+    
+    User Input: "{text_input}"
+    
+    Task:
+    1. Determine if this input is a:
+       - 'GRIEVANCE': A specific problem, complaint, civic issue, broken infrastructure, corruption report, or action required by local authorities (e.g., broken road, water leak, pension delay, street light out).
+       - 'GENERAL_QUERY': An informational question, query about government scheme rules, general advice, or conversational greeting (e.g., "How to apply for PM-KISAN?", "What is the eligibility for ration card?", "Who is the Sarpanch?").
+       
+    2. If 'GRIEVANCE', summarize the issue clearly in English for government officials.
+    3. If 'GENERAL_QUERY', provide a helpful, polite, and detailed answer directly to the citizen in {language_name}.
+
+    Respond in EXACTLY this JSON-like format:
+    CATEGORY: <GRIEVANCE or GENERAL_QUERY>
+    RESPONSE: <Your detailed answer in {language_name} if GENERAL_QUERY, OR clean English summary if GRIEVANCE>
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        res_text = response.text.strip()
+        
+        category = "GRIEVANCE"
+        if "CATEGORY: GENERAL_QUERY" in res_text:
+            category = "GENERAL_QUERY"
+            
+        content = res_text.split("RESPONSE:")[-1].strip() if "RESPONSE:" in res_text else res_text
+        return category, content
+    except Exception as e:
+        # Fallback to default grievance if AI fails
+        return "GRIEVANCE", text_input
 
 # --- SYSTEM UI CONFIGURATION ---
 st.set_page_config(page_title="Grameena Seva App", page_icon="🌾", layout="centered")
@@ -65,74 +107,72 @@ ui_translations = {
         "name_label": "👤 Enter Full Name *",
         "address_label": "🏠 Enter Village & Address *",
         "record_label": "Press record and speak naturally in your chosen language",
-        "submit_btn": "🚀 Submit Grievance to Government Portal"
+        "submit_btn": "🚀 Submit / Process Request"
     },
     "Hindi (हिन्दी)": {
         "name_label": "👤 पूरा नाम दर्ज करें *",
         "address_label": "🏠 गांव और पता दर्ज करें *",
         "record_label": "रिकॉर्ड दबाएं और अपनी भाषा में बोलें",
-        "submit_btn": "🚀 शिकायत दर्ज करें"
+        "submit_btn": "🚀 सबमिट करें / जानकारी प्राप्त करें"
     },
     "Telugu (తెలుగు)": {
         "name_label": "👤 పూర్తి పేరు నమోదు చేయండి *",
         "address_label": "🏠 గ్రామం మరియు చిరునామా నమోదు చేయండి *",
         "record_label": "రైటు బటన్ నొక్కి మీ మాట్లాడండి",
-        "submit_btn": "🚀 ఫిర్యాదును సమర్పించండి"
+        "submit_btn": "🚀 సమర్పించండి / సమాచారం పొందండి"
     },
     "Tamil (தமிழ்)": {
         "name_label": "👤 முழு பெயரை உள்ளிடவும் *",
         "address_label": "🏠 கிராமம் மற்றும் முகவரியை உள்ளிடவும் *",
         "record_label": "பதிவு செய்து பேசுங்கள்",
-        "submit_btn": "🚀 புகாரைச் சமர்ப்பிக்கவும்"
+        "submit_btn": "🚀 சமர்ப்பிக்கவும்"
     },
     "Kannada (ಕನ್ನಡ)": {
         "name_label": "👤 ಪೂರ್ಣ ಹೆಸರನ್ನು ನಮೂದಿಸಿ *",
         "address_label": "🏠 ಗ್ರಾಮ ಮತ್ತು ವಿಳಾಸವನ್ನು ನಮೂದಿಸಿ *",
         "record_label": "ರೆಕಾರ್ಡ್ ಒತ್ತಿ ಮತ್ತು ಮಾತನಾಡಿ",
-        "submit_btn": "🚀 ದೂರು ಸಲ್ಲಿಸಿ"
+        "submit_btn": "🚀 ಸಲ್ಲಿಸಿ"
     },
     "Marathi (मराठी)": {
         "name_label": "👤 पूर्ण नाव प्रविष्ट करा *",
         "address_label": "🏠 गाव आणि पत्ता प्रविष्ट करा *",
         "record_label": "रेकॉर्ड दाबा आणि बोला",
-        "submit_btn": "🚀 तक्रार नोंदवा"
+        "submit_btn": "🚀 सबमिट करा"
     },
     "Bengali (বাংলা)": {
         "name_label": "👤 সম্পূর্ণ নাম লিখুন *",
         "address_label": "🏠 গ্রাম ও ঠিকানা লিখুন *",
         "record_label": "রেকর্ড চাপুন এবং বলুন",
-        "submit_btn": "🚀 অভিযোগ জমা দিন"
+        "submit_btn": "🚀 জমা দিন"
     },
     "Gujarati (ગુજરાતી)": {
         "name_label": "👤 પૂરું નામ દાખલ કરો *",
         "address_label": "🏠 ગામ અને સરનામું દાખલ કરો *",
         "record_label": "રેકોર્ડ દબાવો અને બોલો",
-        "submit_btn": "🚀 ફરિયાદ સબમિટ કરો"
+        "submit_btn": "🚀 સબમિટ કરો"
     },
     "Malayalam (മലയാളം)": {
         "name_label": "👤 പൂർണ്ണ പേര് നൽകുക *",
         "address_label": "🏠 ഗ്രാമവും മേൽവിലാസവും നൽകുക *",
         "record_label": "റെക്കോർഡ് ചെയ്ത് സംസാരിക്കുക",
-        "submit_btn": "🚀 പരാതി സമർപ്പിക്കുക"
+        "submit_btn": "🚀 സമർപ്പിക്കുക"
     },
     "Punjabi (ਪੰਜਾਬੀ)": {
         "name_label": "👤 ਪੂਰਾ ਨਾਮ ਦਰਜ ਕਰੋ *",
         "address_label": "🏠 ਪਿੰਡ ਅਤੇ ਪਤਾ ਦਰਜ ਕਰੋ *",
         "record_label": "ਰਿਕਾਰਡ ਦਬਾਓ ਅਤੇ ਬੋਲੋ",
-        "submit_btn": "🚀 ਸ਼ਿਕਾਇਤ ਦਰਜ ਕਰੋ"
+        "submit_btn": "🚀 ਸ਼ੁਰੂ ਕਰੋ"
     },
     "Urdu (اُردُو)": {
         "name_label": "👤 پورا نام درج کریں *",
         "address_label": "🏠 گاؤں اور پتہ درج کریں *",
         "record_label": "ریکارڈ بٹن دبائیں اور بولیں",
-        "submit_btn": "🚀 شکایت درج کریں"
+        "submit_btn": "🚀 جمع کریں"
     }
 }
 
 selected_ui_lang = st.selectbox("🌐 Choose your language / भाषा चुनें", list(languages_map.keys()))
 lang_code = languages_map[selected_ui_lang]
-
-# Fetch the dynamic labels for the active language selection
 labels = ui_translations.get(selected_ui_lang, ui_translations["English"])
 
 st.write(f"App set to: **{selected_ui_lang}** (Code: `{lang_code}`)")
@@ -141,8 +181,8 @@ st.write("---")
 tab1, tab2 = st.tabs(["🎙️ Talk to Mitra (Voice)", "📷 Scan Documents (OCR)"])
 
 # --- SMTP EMAIL DISPATCH SYSTEM ---
-def dispatch_grievance_email(original_lang, transcribed_text, citizen_name, citizen_address):
-    """Securely transmits the grievance and citizen profile via SMTP using Streamlit Secrets."""
+def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citizen_name, citizen_address):
+    """Transmits actionable official grievances via SMTP using Streamlit Secrets."""
     try:
         sender_email = st.secrets["SYSTEM_ALERT_EMAIL"]
         sender_password = st.secrets["SYSTEM_ALERT_PASSWORD"]
@@ -154,78 +194,89 @@ def dispatch_grievance_email(original_lang, transcribed_text, citizen_name, citi
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = receiver_email
-    msg['Subject'] = f"URGENT: New Grievance Filed by {citizen_name} ({original_lang})"
+    msg['Subject'] = f"ACTION REQUIRED: New Field Grievance - {citizen_name} ({original_lang})"
     
     body = f"""
     Respected Officer,
     
-    A new citizen grievance has been submitted via the Grameena Seva App platform.
+    A citizen grievance requiring official intervention has been verified and routed via Grameena Seva.
     
     --- CITIZEN IDENTITY DETAILS ---
     Name of Citizen : {citizen_name}
     Village/Address : {citizen_address}
     
-    --- FIELD REPORT ---
-    Language Selected: {original_lang}
-    {transcribed_text}
+    --- AI TRIAGE REPORT ---
+    Original Language : {original_lang}
+    Raw Transcription : {transcribed_text}
+    
+    AI Incident Summary:
+    {ai_summary}
     
     --------------------------------------------------
-    This is an automated operational dispatch. Please review and initiate resolution workflows.
+    This is an automated operational dispatch. Please review and initiate resolution.
     """
     msg.attach(MIMEText(body, 'plain'))
     
     try:
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(sender_email, sender_password)
-        text = msg.as_string()
-        server.sendmail(sender_email, receiver_email, text)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
         server.quit()
         return True
     except Exception as e:
         st.sidebar.error(f"Mail Server Error: {e}")
         return False
 
-# --- TAB 1: VOICE GRIEVANCE FORM ---
+# --- TAB 1: VOICE INTERFACE WITH AI TRIAGE ---
 with tab1:
     st.subheader("📝 Citizen Information Form")
-    
-    # Dynamic language input labels
     farmer_name = st.text_input(labels["name_label"])
     farmer_address = st.text_area(labels["address_label"], height=70)
     
     st.write("---")
-    st.subheader("🎙️ Record Your Grievance")
+    st.subheader("🎙️ Speak or Record Your Query / Grievance")
     audio_file = st.audio_input(labels["record_label"])
     
     if audio_file:
         st.success("Audio captured successfully!")
-        
         audio_bytes = audio_file.read()
-        st.info(f"Processing voice input in {selected_ui_lang}...")
         
-        # Transcribe audio using the selected language code
-        translated_text = transcribe_actual_audio(audio_bytes, lang_code)
-        
-        st.subheader("📋 Output Verification:")
-        st.text_area(label="", value=translated_text, height=120)
-        
-        # Validation Gate Check
-        if farmer_name.strip() and farmer_address.strip():
-            if st.button(labels["submit_btn"]):
-                with st.spinner("Routing alert to the official department..."):
-                    email_status = dispatch_grievance_email(
-                        selected_ui_lang, 
-                        translated_text, 
-                        farmer_name, 
-                        farmer_address
-                    )
-                    
-                    if email_status:
-                        st.success(f"🎉 Grievance filed for {farmer_name}! Sent to the government official.")
-                    else:
-                        st.error("Submission failed. Check system credentials.")
+        with st.spinner(f"Transcribing voice in {selected_ui_lang}..."):
+            user_text = transcribe_actual_audio(audio_bytes, lang_code)
+            
+        if user_text:
+            st.subheader("📋 Captured Input:")
+            st.info(f'"{user_text}"')
+            
+            # Validation Gate Check
+            if farmer_name.strip() and farmer_address.strip():
+                if st.button(labels["submit_btn"]):
+                    with st.spinner("AI analyzing query & determining routing action..."):
+                        category, result_content = process_citizen_input(user_text, selected_ui_lang)
+                        
+                        if category == "GENERAL_QUERY":
+                            st.success("🤖 AI Mitra Assistant Answer:")
+                            st.markdown(f"### 💡 Solution:\n{result_content}")
+                            st.caption("ℹ️ This query was answered directly by AI as it did not require government intervention.")
+                            
+                        elif category == "GRIEVANCE":
+                            st.warning("🚨 Official Action Required: Routing issue to government portal...")
+                            email_status = dispatch_grievance_email(
+                                selected_ui_lang, 
+                                user_text, 
+                                result_content, 
+                                farmer_name, 
+                                farmer_address
+                            )
+                            
+                            if email_status:
+                                st.success(f"🎉 Grievance filed successfully for {farmer_name}! Dispatch notification sent to government officials.")
+                            else:
+                                st.error("Submission failed. Check mail server credentials.")
+            else:
+                st.warning("⚠️ Action Required: Please fill out both your Name and Address fields above to enable processing.")
         else:
-            st.warning("⚠️ Action Required: Please fill out both your Name and Address fields above to unlock the Submit button.")
+            st.error("Could not transcribe clear speech. Please speak clearly into the microphone.")
 
 # --- TAB 2: DOCUMENT OCR PLACEHOLDER ---
 with tab2:
