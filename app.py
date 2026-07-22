@@ -31,7 +31,7 @@ def transcribe_actual_audio(audio_bytes, target_language_code):
     except Exception as e:
         return None
 
-# --- AI TRIAGE & RESPONSE CORE ---
+# --- IMPROVED AI TRIAGE & RESPONSE CORE ---
 def process_citizen_input(text_input, language_name):
     """
     Uses Gemini AI to evaluate citizen input:
@@ -44,31 +44,34 @@ def process_citizen_input(text_input, language_name):
     
     User Input: "{text_input}"
     
-    Task:
-    1. Determine if this input is a:
-       - 'GRIEVANCE': A specific problem, complaint, civic issue, broken infrastructure, corruption report, or action required by local authorities (e.g., broken road, water leak, pension delay, street light out).
-       - 'GENERAL_QUERY': An informational question, query about government scheme rules, general advice, or conversational greeting (e.g., "How to apply for PM-KISAN?", "What is the eligibility for ration card?", "Who is the Sarpanch?").
-       
-    2. If 'GRIEVANCE', summarize the issue clearly in English for government officials.
-    3. If 'GENERAL_QUERY', provide a helpful, polite, and detailed answer directly to the citizen in {language_name}.
+    Categorization Rules:
+    - 'GENERAL_QUERY': The user is asking a question about government schemes, subsidies (e.g., tractor subsidy, PM-KISAN, seeds, fertilizers), eligibility, rules, processes, or general information.
+    - 'GRIEVANCE': The user is reporting an actual operational problem, broken public utility (road, water pipe, street light), delay in official service, corruption, or requesting direct government intervention for an issue.
 
-    Respond in EXACTLY this JSON-like format:
-    CATEGORY: <GRIEVANCE or GENERAL_QUERY>
-    RESPONSE: <Your detailed answer in {language_name} if GENERAL_QUERY, OR clean English summary if GRIEVANCE>
+    Tasks:
+    1. Decide if it is GENERAL_QUERY or GRIEVANCE.
+    2. If GENERAL_QUERY: Provide a helpful, polite, and detailed answer explaining the scheme or answer in {language_name}.
+    3. If GRIEVANCE: Provide a concise English summary of the issue for government officials.
+
+    Output MUST follow this format exactly:
+    CATEGORY: <GENERAL_QUERY or GRIEVANCE>
+    RESPONSE: <Your answer in {language_name} if GENERAL_QUERY, or English summary if GRIEVANCE>
     """
     
     try:
         response = model.generate_content(prompt)
         res_text = response.text.strip()
         
-        category = "GRIEVANCE"
-        if "CATEGORY: GENERAL_QUERY" in res_text:
+        # Explicit check for GENERAL_QUERY
+        if "CATEGORY: GENERAL_QUERY" in res_text or "GENERAL_QUERY" in res_text:
             category = "GENERAL_QUERY"
+        else:
+            category = "GRIEVANCE"
             
         content = res_text.split("RESPONSE:")[-1].strip() if "RESPONSE:" in res_text else res_text
         return category, content
     except Exception as e:
-        # Fallback to default grievance if AI fails
+        # Fallback if Gemini fails
         return "GRIEVANCE", text_input
 
 # --- SYSTEM UI CONFIGURATION ---
@@ -272,7 +275,7 @@ with tab1:
                             if email_status:
                                 st.success(f"🎉 Grievance filed successfully for {farmer_name}! Dispatch notification sent to government officials.")
                             else:
-                                st.error("Submission failed. Check mail server credentials.")
+                                st.error("Submission failed. Please check your mail server credentials in Streamlit Secrets.")
             else:
                 st.warning("⚠️ Action Required: Please fill out both your Name and Address fields above to enable processing.")
         else:
