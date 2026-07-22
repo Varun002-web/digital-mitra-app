@@ -31,12 +31,10 @@ def transcribe_actual_audio(audio_bytes, target_language_code):
     except Exception as e:
         return None
 
-# --- IMPROVED AI TRIAGE & RESPONSE CORE ---
+# --- ROBUST AI TRIAGE & RESPONSE CORE ---
 def process_citizen_input(text_input, language_name):
     """
-    Uses Gemini AI to evaluate citizen input:
-    Returns (category, response_text)
-    category: 'GRIEVANCE' or 'GENERAL_QUERY'
+    Uses Gemini AI to evaluate citizen input and strictly categorize as GENERAL_QUERY or GRIEVANCE.
     """
     prompt = f"""
     You are an AI Assistant for Grameena Seva, a rural government portal in India.
@@ -44,35 +42,35 @@ def process_citizen_input(text_input, language_name):
     
     User Input: "{text_input}"
     
-    Categorization Rules:
-    - 'GENERAL_QUERY': The user is asking a question about government schemes, subsidies (e.g., tractor subsidy, PM-KISAN, seeds, fertilizers), eligibility, rules, processes, or general information.
-    - 'GRIEVANCE': The user is reporting an actual operational problem, broken public utility (road, water pipe, street light), delay in official service, corruption, or requesting direct government intervention for an issue.
+    CLASSIFICATION RULES:
+    1. Output 'CATEGORY: GENERAL_QUERY' if the user is asking a question about government schemes, subsidies (e.g., tractor subsidy, PM-KISAN, seeds, fertilizers), eligibility, rules, required documents, or general info.
+    2. Output 'CATEGORY: GRIEVANCE' ONLY if the user is reporting a physical problem, broken utility (road, water pipe, street light), corruption, or official service delay needing action.
 
-    Tasks:
-    1. Decide if it is GENERAL_QUERY or GRIEVANCE.
-    2. If GENERAL_QUERY: Provide a helpful, polite, and detailed answer explaining the scheme or answer in {language_name}.
-    3. If GRIEVANCE: Provide a concise English summary of the issue for government officials.
-
-    Output MUST follow this format exactly:
-    CATEGORY: <GENERAL_QUERY or GRIEVANCE>
-    RESPONSE: <Your answer in {language_name} if GENERAL_QUERY, or English summary if GRIEVANCE>
+    OUTPUT FORMAT:
+    First line MUST be exactly: CATEGORY: GENERAL_QUERY or CATEGORY: GRIEVANCE
+    Second line MUST start with: RESPONSE:
+    Followed by your helpful answer in {language_name} (if GENERAL_QUERY) or concise English summary (if GRIEVANCE).
     """
     
     try:
         response = model.generate_content(prompt)
         res_text = response.text.strip()
         
-        # Explicit check for GENERAL_QUERY
-        if "CATEGORY: GENERAL_QUERY" in res_text or "GENERAL_QUERY" in res_text:
+        # Robust case-insensitive check
+        if "GENERAL_QUERY" in res_text.upper():
             category = "GENERAL_QUERY"
         else:
             category = "GRIEVANCE"
             
-        content = res_text.split("RESPONSE:")[-1].strip() if "RESPONSE:" in res_text else res_text
+        if "RESPONSE:" in res_text:
+            content = res_text.split("RESPONSE:", 1)[-1].strip()
+        else:
+            content = res_text
+            
         return category, content
     except Exception as e:
-        # Fallback if Gemini fails
-        return "GRIEVANCE", text_input
+        # Safe fallback so informational queries aren't accidentally sent to SMTP on failure
+        return "GENERAL_QUERY", f"Information regarding: {text_input}"
 
 # --- SYSTEM UI CONFIGURATION ---
 st.set_page_config(page_title="Grameena Seva App", page_icon="🌾", layout="centered")
