@@ -12,8 +12,8 @@ from gtts import gTTS
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Using 'gemini-1.5-flash-latest' avoids 404 version mapping issues on API v1beta
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    # Standard string format expected by google.generativeai
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error(f"Gemini Configuration Error: {e}")
 
