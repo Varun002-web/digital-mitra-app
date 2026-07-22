@@ -83,91 +83,112 @@ def process_citizen_input(text_input, language_name):
         fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
         return "GENERAL_QUERY", fallback_msg
 
-# --- PAGE CONFIGURATION & DARK THEME CSS ---
+# --- PAGE CONFIGURATION & ANIMATED CSS STYLES ---
 st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="centered")
 
 st.markdown("""
     <style>
-    /* Dark Theme Backgrounds */
+    /* Global Background */
     .stApp {
-        background-color: #0E1117;
-        color: #E2E8F0;
+        background-color: #f4f7f4;
     }
     
-    /* Header Banner Dark Emerald Gradient */
+    /* Header Banner */
     .header-box {
-        background: linear-gradient(135deg, #064e3b, #047857);
-        color: #ffffff;
+        background: linear-gradient(135deg, #1b5e20, #2e7d32);
+        color: white;
         padding: 24px;
-        border-radius: 16px;
+        border-radius: 20px;
         text-align: center;
-        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.4);
-        margin-bottom: 20px;
-        border: 1px solid #10b981;
+        box-shadow: 0px 8px 20px rgba(27, 94, 32, 0.2);
+        margin-bottom: 25px;
     }
     .header-box h1 {
         margin: 0;
-        font-size: 28px;
+        font-size: 30px;
         font-weight: 800;
         color: #ffffff;
     }
     .header-box p {
         margin-top: 6px;
-        font-size: 15px;
-        color: #a7f3d0;
+        font-size: 16px;
+        color: #e8f5e9;
     }
 
-    /* Dark Mode Cards */
+    /* Standard Card Container */
     .card-container {
-        background-color: #161B22;
+        background-color: #ffffff;
+        padding: 22px;
+        border-radius: 16px;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.04);
+        margin-bottom: 20px;
+        border-left: 6px solid #2e7d32;
+    }
+
+    /* 🎙️ PULSE ANIMATION FOR VOICE RECORDING SECTION */
+    .pulse-card {
+        background-color: #ffffff;
+        padding: 22px;
+        border-radius: 16px;
+        margin-bottom: 20px;
+        border: 2px solid #81c784;
+        animation: pulse-border 2s infinite;
+    }
+
+    @keyframes pulse-border {
+        0% {
+            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 15px rgba(76, 175, 80, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+        }
+    }
+
+    /* 🔊 WAVE ANIMATION FOR AUDIO PLAYER CONTAINER */
+    .wave-card {
+        background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+        border: 2px solid #4caf50;
         padding: 20px;
-        border-radius: 14px;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.3);
-        margin-bottom: 18px;
-        border-left: 5px solid #10b981;
-        border-top: 1px solid #30363d;
-        border-right: 1px solid #30363d;
-        border-bottom: 1px solid #30363d;
+        border-radius: 16px;
+        margin-top: 20px;
+        text-align: center;
+        animation: wave-glow 2.5s infinite alternate;
     }
 
-    /* Input Fields Styling in Dark Mode */
-    .stTextInput input, .stTextArea textarea, .stSelectbox select {
-        background-color: #21262d !important;
-        color: #f0f6fc !important;
-        border: 1px solid #30363d !important;
-        border-radius: 8px !important;
+    @keyframes wave-glow {
+        0% {
+            border-color: #4caf50;
+            box-shadow: 0px 0px 8px rgba(76, 175, 80, 0.3);
+        }
+        50% {
+            border-color: #ff9800;
+            box-shadow: 0px 0px 18px rgba(255, 152, 0, 0.5);
+        }
+        100% {
+            border-color: #4caf50;
+            box-shadow: 0px 0px 8px rgba(76, 175, 80, 0.3);
+        }
     }
 
-    /* Primary Action Button - Warm Amber/Orange Accent */
+    /* Vibrant Submit Button */
     .stButton>button {
         width: 100%;
-        height: 56px;
-        background: linear-gradient(90deg, #ea580c, #f97316);
-        color: #ffffff !important;
-        border-radius: 12px;
-        font-weight: 700;
-        font-size: 18px;
+        height: 60px;
+        background: linear-gradient(90deg, #e65100, #f57c00);
+        color: white !important;
+        border-radius: 14px;
+        font-weight: 800;
+        font-size: 20px;
         border: none;
-        box-shadow: 0px 4px 12px rgba(234, 88, 12, 0.4);
+        box-shadow: 0px 6px 15px rgba(230, 81, 0, 0.3);
         transition: all 0.3s ease;
     }
     .stButton>button:hover {
         transform: translateY(-2px);
-        box-shadow: 0px 6px 16px rgba(249, 115, 22, 0.5);
-    }
-
-    /* Audio Box Dark Highlight */
-    .audio-card {
-        background-color: #064e3b;
-        border: 1px solid #34d399;
-        padding: 16px;
-        border-radius: 12px;
-        margin-top: 15px;
-        text-align: center;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.5);
-    }
-    .audio-card h3 {
-        color: #a7f3d0 !important;
+        box-shadow: 0px 8px 20px rgba(230, 81, 0, 0.5);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -176,7 +197,7 @@ st.markdown("""
 st.markdown("""
     <div class="header-box">
         <h1>🌾 Grama Seva AI Hub</h1>
-        <p>ఆల్-ఇన్-వన్ గ్రామీణ వాయిస్ సహాయకుడు | Voice Portal for Rural India</p>
+        <p>ఆల్-ఇన్-వన్ గ్రామీణ వాయిస్ సహాయకుడు | Multilingual Rural Voice Portal</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -199,19 +220,19 @@ ui_translations = {
     "English": {
         "name_label": "👤 Citizen Full Name *",
         "address_label": "🏠 Village & Address *",
-        "record_label": "Tap microphone and speak your query",
-        "submit_btn": "🔊 Process & Listen to Response"
+        "record_label": "Tap mic and speak your query",
+        "submit_btn": "🔊 Process & Play Voice Response"
     },
     "Telugu (తెలుగు)": {
         "name_label": "👤 మీ పూర్తి పేరు నమోదు చేయండి *",
         "address_label": "🏠 మీ గ్రామం & చిరునామా *",
-        "record_label": "మైక్ బటన్ నొక్కి మీ మాట్లాడండి",
+        "record_label": "మైక్ బటన్ నొక్కి మాట్లాడండి",
         "submit_btn": "🔊 సమాధానం వినండి (Submit)"
     },
     "Hindi (हिन्दी)": {
         "name_label": "👤 पूरा नाम *",
         "address_label": "🏠 गांव और पता *",
-        "record_label": "माइक दबाएं और अपनी बात बोलें",
+        "record_label": "माइक दबाएं और बोलें",
         "submit_btn": "🔊 उत्तर सुनें (Submit)"
     }
 }
@@ -260,7 +281,8 @@ with tab1:
         farmer_address = st.text_input(labels["address_label"])
     st.markdown('</div>', unsafe_allow_html=True)
     
-    st.markdown('<div class="card-container">', unsafe_allow_html=True)
+    # PULSE ANIMATED RECORDING CONTAINER
+    st.markdown('<div class="pulse-card">', unsafe_allow_html=True)
     st.subheader("🎙️ Voice Input / మాట్లాడండి")
     audio_file = st.audio_input(labels["record_label"])
     st.markdown('</div>', unsafe_allow_html=True)
@@ -285,8 +307,9 @@ with tab1:
                             
                             audio_stream = generate_speech_audio(result_content, tts_code)
                             if audio_stream:
-                                st.markdown('<div class="audio-card">', unsafe_allow_html=True)
-                                st.subheader("🔊 Click below to listen / వినడానికి ప్లే నొక్కండి:")
+                                # WAVE ANIMATED AUDIO PLAYER CONTAINER
+                                st.markdown('<div class="wave-card">', unsafe_allow_html=True)
+                                st.subheader("🔊 Listen to Answer / సమాధానం వినండి:")
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
                                 st.markdown('</div>', unsafe_allow_html=True)
                                 
@@ -301,7 +324,9 @@ with tab1:
                             
                             audio_stream = generate_speech_audio(msg_text, tts_code)
                             if audio_stream:
+                                st.markdown('<div class="wave-card">', unsafe_allow_html=True)
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
+                                st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.warning("⚠️ Please fill in Name and Address fields above.")
 
