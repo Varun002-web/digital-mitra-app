@@ -1,5 +1,5 @@
-gTTS
 streamlit
 google-generativeai
 SpeechRecognition
+gTTS
 Pillow
