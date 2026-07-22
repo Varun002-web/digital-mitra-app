@@ -80,8 +80,12 @@ def process_citizen_input(text_input, language_name):
         return category, content
         
     except Exception as e:
+        # Print actual error in Streamlit for debugging
+        st.error(f"Gemini API Error: {e}")
+        
         fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
-        return "GENERAL_QUERY", fallback_msg
+        # Categorized as FALLBACK_GRIEVANCE so system automatically emails officials
+        return "FALLBACK_GRIEVANCE", fallback_msg
 
 # --- PAGE CONFIGURATION & ANIMATED CSS STYLES ---
 st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="centered")
@@ -256,9 +260,9 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = receiver_email
-    msg['Subject'] = f"Grievance Reported: {citizen_name} ({original_lang})"
+    msg['Subject'] = f"Grievance/Unresolved Query: {citizen_name} ({original_lang})"
     
-    body = f"Citizen: {citizen_name}\nAddress: {citizen_address}\nSpoken Input: {transcribed_text}\nAI Summary: {ai_summary}"
+    body = f"Citizen Name: {citizen_name}\nAddress: {citizen_address}\nSpoken Input: {transcribed_text}\nAI Note/Summary: {ai_summary}"
     msg.attach(MIMEText(body, 'plain'))
     
     try:
@@ -267,7 +271,8 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
         server.sendmail(sender_email, receiver_email, msg.as_string())
         server.quit()
         return True
-    except Exception:
+    except Exception as e:
+        st.error(f"Email Dispatch Failed: {e}")
         return False
 
 # --- TAB 1: VOICE PORTAL ---
@@ -298,7 +303,7 @@ with tab1:
             
             if farmer_name.strip() and farmer_address.strip():
                 if st.button(labels["submit_btn"]):
-                    with st.spinner("Generating voice answer..."):
+                    with st.spinner("Processing request..."):
                         category, result_content = process_citizen_input(user_text, selected_ui_lang)
                         
                         if category == "GENERAL_QUERY":
@@ -307,20 +312,24 @@ with tab1:
                             
                             audio_stream = generate_speech_audio(result_content, tts_code)
                             if audio_stream:
-                                # WAVE ANIMATED AUDIO PLAYER CONTAINER
                                 st.markdown('<div class="wave-card">', unsafe_allow_html=True)
                                 st.subheader("🔊 Listen to Answer / సమాధానం వినండి:")
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
                                 st.markdown('</div>', unsafe_allow_html=True)
                                 
-                        elif category == "GRIEVANCE":
-                            st.warning("🚨 Official Complaint Registering...")
+                        elif category in ["GRIEVANCE", "FALLBACK_GRIEVANCE"]:
+                            st.warning("🚨 Routing request to Grievance Officer via Email...")
                             email_status = dispatch_grievance_email(
                                 selected_ui_lang, user_text, result_content, farmer_name, farmer_address
                             )
                             
-                            msg_text = f"మీ ఫిర్యాదు విజయవంతంగా నమోదైంది {farmer_name}. అధికారులకు నివేదిక పంపబడింది."
-                            st.success(msg_text)
+                            if email_status:
+                                st.success("📧 Email successfully sent to Grievance Officer!")
+                            else:
+                                st.error("⚠️ Could not send email. Please check your SMTP email secrets configuration.")
+
+                            msg_text = f"మీ ప్రశ్న లేదా ఫిర్యాదు అధికారులకు ఇమెయిల్ ద్వారా పంపబడింది, {farmer_name}."
+                            st.info(msg_text)
                             
                             audio_stream = generate_speech_audio(msg_text, tts_code)
                             if audio_stream:
