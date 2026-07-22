@@ -12,14 +12,14 @@ from gtts import gTTS
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Using modern flash model string
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    # Standard stable flash model
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
-    st.error("Gemini API key is missing or invalid in Streamlit secrets!")
+    st.error("Gemini API key missing or invalid in Streamlit secrets!")
 
 # --- SPEECH RECOGNITION ENGINE ---
 def transcribe_actual_audio(audio_bytes, target_language_code):
-    """Processes real microphone audio bytes and extracts spoken words."""
+    """Processes real microphone audio bytes and extracts spoken words using Google Speech Recognition."""
     recognizer = sr.Recognizer()
     try:
         audio_file = io.BytesIO(audio_bytes)
@@ -33,10 +33,10 @@ def transcribe_actual_audio(audio_bytes, target_language_code):
 
 # --- TEXT-TO-SPEECH (TTS) AUDIO GENERATOR ---
 def generate_speech_audio(text, gtts_lang_code):
-    """Converts response text into spoken voice audio."""
+    """Converts response text into clean, natural spoken voice audio using gTTS."""
     try:
-        # Strip simple formatting characters before speaking
-        clean_text = text.replace("*", "").replace("#", "").replace("-", "")
+        # Strip markdown symbols so speech engine doesn't stutter or speak punctuation
+        clean_text = text.replace("*", "").replace("#", "").replace("-", "").replace("`", "")
         tts = gTTS(text=clean_text, lang=gtts_lang_code, slow=False)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
@@ -46,39 +46,38 @@ def generate_speech_audio(text, gtts_lang_code):
         st.error(f"Error generating voice audio: {e}")
         return None
 
-# --- ROBUST AI TRIAGE & RESPONSE CORE ---
+# --- DYNAMIC MULTI-LANGUAGE AI TRIAGE CORE ---
 def process_citizen_input(text_input, language_name):
     """
-    Uses Gemini AI to evaluate citizen input and strictly categorize as GENERAL_QUERY or GRIEVANCE.
-    Always generates full detailed response in the chosen language.
+    Dynamically analyzes citizen queries in any language and provides tailored responses.
     """
     prompt = f"""
-    You are Grameena Seva AI, a friendly rural government voice assistant in India.
-    The citizen spoken input is: "{text_input}"
-    Language chosen by user: {language_name}
+    You are Grameena Seva AI, an empathetic voice assistant for rural citizens in India.
+    
+    The citizen spoke the following query in {language_name}:
+    "{text_input}"
 
     INSTRUCTIONS:
-    1. CATEGORY:
-       - Output 'CATEGORY: GENERAL_QUERY' if the user is asking for information about government schemes, tractor subsidies, agriculture schemes, eligibility, documents required, or rules.
-       - Output 'CATEGORY: GRIEVANCE' ONLY if they are complaining about a broken facility (roads, water, electricity), service delay, or corruption.
+    1. CATEGORY CLASSIFICATION:
+       - Output 'CATEGORY: GENERAL_QUERY' if they are asking for guidance, scheme details, land value/registration info, subsidies, agricultural rules, or general help.
+       - Output 'CATEGORY: GRIEVANCE' ONLY if they are reporting a broken utility (road, water pipe, street light), delay in government service delivery, or official corruption.
 
-    2. RESPONSE:
-       - Provide a complete, clear, and encouraging answer in {language_name}.
-       - Do NOT use heavy bullet points, stars (*), or complex formatting so the voice reader can speak it smoothly aloud.
-       - Keep sentences simple and spoken-friendly so rural villagers who cannot read can easily understand when played as audio.
+    2. RESPONSE GENERATION:
+       - DIRECTLY answer the user's specific question: "{text_input}"
+       - Respond entirely in {language_name}.
+       - Use simple, conversational spoken language suitable for Voice/Audio playback.
+       - DO NOT use bullet points, asterisks (*), hash signs (#), or complex formatting so text-to-speech reads smoothly.
 
-    OUTPUT FORMAT EXACTLY:
+    OUTPUT FORMAT STRICTLY:
     CATEGORY: <GENERAL_QUERY or GRIEVANCE>
-    RESPONSE: <Your complete spoken response in {language_name}>
+    RESPONSE: <Your answer directly addressing their question in {language_name}>
     """
     
     try:
         response = model.generate_content(prompt)
         res_text = response.text.strip()
         
-        category = "GENERAL_QUERY"
-        if "CATEGORY: GRIEVANCE" in res_text.upper():
-            category = "GRIEVANCE"
+        category = "GRIEVANCE" if "CATEGORY: GRIEVANCE" in res_text.upper() else "GENERAL_QUERY"
             
         if "RESPONSE:" in res_text:
             content = res_text.split("RESPONSE:", 1)[-1].strip()
@@ -86,21 +85,23 @@ def process_citizen_input(text_input, language_name):
             content = res_text
             
         return category, content
+        
     except Exception as e:
-        # Detailed fallback so query is still answered
-        return "GENERAL_QUERY", f"నమస్కారం! ట్రాక్టర్ల కొనుగోలుకు ప్రభుత్వం సబ్సిడీలను అందిస్తుంది. వ్యవసాయ యంత్రాల సబ్సిడీ పథకాల కింద చిన్న, సన్నకారు రైతులకు 40 శాతం నుండి 50 శాతం వరకు సబ్సిడీ లభిస్తుంది. సమీపంలోని రైతు సేవా కేంద్రం లేదా వ్యవసాయాధికారిని సంప్రదించండి."
+        # Dynamic fallback matching user's specific text directly without hardcoding unrelated schemes
+        fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
+        return "GENERAL_QUERY", fallback_msg
 
 # --- SYSTEM UI CONFIGURATION ---
 st.set_page_config(page_title="Grameena Seva App", page_icon="🌾", layout="centered")
 
 st.markdown("""
     <style>
-    .stButton>button { width: 100%; height: 60px; background-color: #E2725B; color: white; border-radius: 10px; font-weight: bold; }
+    .stButton>button { width: 100%; height: 60px; background-color: #E2725B; color: white; border-radius: 10px; font-weight: bold; font-size: 18px; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🌾 Grameena Seva AI Hub")
-st.write("Voice Assistant for Rural Citizens")
+st.write("Multilingual Voice Assistant for Rural Citizens")
 st.write("---")
 
 # Supported Languages for Voice Input & Voice Output
@@ -123,7 +124,7 @@ ui_translations = {
         "name_label": "👤 Enter Full Name *",
         "address_label": "🏠 Enter Village & Address *",
         "record_label": "Press record and speak naturally in your chosen language",
-        "submit_btn": "🚀 Process Request & Listen Answer"
+        "submit_btn": "🚀 Process Request & Play Voice Answer"
     },
     "Telugu (తెలుగు)": {
         "name_label": "👤 పూర్తి పేరు నమోదు చేయండి *",
@@ -160,9 +161,9 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
     msg = MIMEMultipart()
     msg['From'] = sender_email
     msg['To'] = receiver_email
-    msg['Subject'] = f"Grievance: {citizen_name} ({original_lang})"
+    msg['Subject'] = f"Grievance Reported: {citizen_name} ({original_lang})"
     
-    body = f"Citizen: {citizen_name}\nAddress: {citizen_address}\nQuery: {transcribed_text}\nSummary: {ai_summary}"
+    body = f"Citizen: {citizen_name}\nAddress: {citizen_address}\nSpoken Input: {transcribed_text}\nAI Summary: {ai_summary}"
     msg.attach(MIMEText(body, 'plain'))
     
     try:
@@ -174,7 +175,7 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
     except Exception:
         return False
 
-# --- VOICE TAB ---
+# --- VOICE INTERFACE TAB ---
 with tab1:
     st.subheader("📝 Citizen Details")
     farmer_name = st.text_input(labels["name_label"])
@@ -188,7 +189,7 @@ with tab1:
         st.success("Audio captured!")
         audio_bytes = audio_file.read()
         
-        with st.spinner("Processing spoken input..."):
+        with st.spinner(f"Processing spoken input in {selected_ui_lang}..."):
             user_text = transcribe_actual_audio(audio_bytes, stt_code)
             
         if user_text:
@@ -197,17 +198,17 @@ with tab1:
             
             if farmer_name.strip() and farmer_address.strip():
                 if st.button(labels["submit_btn"]):
-                    with st.spinner("AI is preparing voice response..."):
+                    with st.spinner("AI is generating tailored voice response..."):
                         category, result_content = process_citizen_input(user_text, selected_ui_lang)
                         
                         if category == "GENERAL_QUERY":
                             st.success("🤖 AI Voice Response:")
-                            st.markdown(f"### 💡 Answer:\n{result_content}")
+                            st.markdown(f"### 💡 Solution:\n{result_content}")
                             
                             # GENERATE AND PLAY AUDIO
                             audio_stream = generate_speech_audio(result_content, tts_code)
                             if audio_stream:
-                                st.subheader("🔊 Audio Answer (వినడానికి నొక్కండి):")
+                                st.subheader("🔊 Audio Answer (వినడానికి ప్లే నొక్కండి):")
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
                                 
                         elif category == "GRIEVANCE":
@@ -216,17 +217,22 @@ with tab1:
                                 selected_ui_lang, user_text, result_content, farmer_name, farmer_address
                             )
                             
-                            msg_text = f"మీ ఫిర్యాదు నమోదైంది {farmer_name}. అధికారులకు నివేదిక పంపబడింది."
+                            msg_text = f"మీ ఫిర్యాదు విజయవంతంగా నమోదు చేయబడింది {farmer_name}. సంబంధిత అధికారులకు ఇమెయిల్ ద్వారా సమాచారం అందించబడింది."
                             st.success(msg_text)
                             
                             audio_stream = generate_speech_audio(msg_text, tts_code)
                             if audio_stream:
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
             else:
-                st.warning("Please fill Name and Address above.")
+                st.warning("⚠️ Please enter both your Name and Address above before submitting.")
         else:
-            st.error("Voice not recognized clearly. Please speak again.")
+            st.error("Voice not recognized clearly. Please check your microphone and speak again.")
 
+# --- DOCUMENT SCANNER TAB ---
 with tab2:
-    st.subheader("Document Scan")
-    uploaded_image = st.camera_input("Take photo")
+    st.subheader("Document Scan / Camera")
+    uploaded_image = st.camera_input("Take photo of Land Record / ID")
+    if uploaded_image:
+        image = Image.open(uploaded_image)
+        st.image(image, caption="Uploaded Document", use_container_width=True)
+        st.info("Document captured successfully.")
