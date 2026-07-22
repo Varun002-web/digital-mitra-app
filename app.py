@@ -83,25 +83,27 @@ def process_citizen_input(text_input, language_name):
         fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
         return "GENERAL_QUERY", fallback_msg
 
-# --- PAGE CONFIGURATION & CUSTOM UI STYLES ---
+# --- PAGE CONFIGURATION & DARK THEME CSS ---
 st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="centered")
 
 st.markdown("""
     <style>
-    /* Global Styling */
+    /* Dark Theme Backgrounds */
     .stApp {
-        background-color: #F7F9F6;
+        background-color: #0E1117;
+        color: #E2E8F0;
     }
     
-    /* Header Banner */
+    /* Header Banner Dark Emerald Gradient */
     .header-box {
-        background: linear-gradient(135deg, #1b5e20, #388e3c);
-        color: white;
+        background: linear-gradient(135deg, #064e3b, #047857);
+        color: #ffffff;
         padding: 24px;
         border-radius: 16px;
         text-align: center;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.4);
         margin-bottom: 20px;
+        border: 1px solid #10b981;
     }
     .header-box h1 {
         margin: 0;
@@ -112,45 +114,60 @@ st.markdown("""
     .header-box p {
         margin-top: 6px;
         font-size: 15px;
-        color: #e8f5e9;
+        color: #a7f3d0;
     }
 
-    /* Cards */
+    /* Dark Mode Cards */
     .card-container {
-        background-color: #ffffff;
+        background-color: #161B22;
         padding: 20px;
         border-radius: 14px;
-        box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.3);
         margin-bottom: 18px;
-        border-left: 5px solid #2e7d32;
+        border-left: 5px solid #10b981;
+        border-top: 1px solid #30363d;
+        border-right: 1px solid #30363d;
+        border-bottom: 1px solid #30363d;
     }
 
-    /* Primary Action Button */
+    /* Input Fields Styling in Dark Mode */
+    .stTextInput input, .stTextArea textarea, .stSelectbox select {
+        background-color: #21262d !important;
+        color: #f0f6fc !important;
+        border: 1px solid #30363d !important;
+        border-radius: 8px !important;
+    }
+
+    /* Primary Action Button - Warm Amber/Orange Accent */
     .stButton>button {
         width: 100%;
         height: 56px;
-        background: linear-gradient(90deg, #e65100, #f57c00);
-        color: white !important;
+        background: linear-gradient(90deg, #ea580c, #f97316);
+        color: #ffffff !important;
         border-radius: 12px;
         font-weight: 700;
         font-size: 18px;
         border: none;
-        box-shadow: 0px 4px 10px rgba(230, 81, 0, 0.3);
+        box-shadow: 0px 4px 12px rgba(234, 88, 12, 0.4);
         transition: all 0.3s ease;
     }
     .stButton>button:hover {
         transform: translateY(-2px);
-        box-shadow: 0px 6px 14px rgba(230, 81, 0, 0.4);
+        box-shadow: 0px 6px 16px rgba(249, 115, 22, 0.5);
     }
 
-    /* Audio Box Highlight */
+    /* Audio Box Dark Highlight */
     .audio-card {
-        background-color: #e8f5e9;
-        border: 2px solid #81c784;
+        background-color: #064e3b;
+        border: 1px solid #34d399;
         padding: 16px;
         border-radius: 12px;
         margin-top: 15px;
         text-align: center;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.5);
+    }
+    .audio-card h3 {
+        color: #a7f3d0 !important;
     }
     </style>
     """, unsafe_allow_html=True)
