@@ -12,7 +12,7 @@ from gtts import gTTS
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Standard string format expected by google.generativeai
+    # Clean model identifier string for standard google-generativeai SDK
     model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error(f"Gemini Configuration Error: {e}")
@@ -180,7 +180,7 @@ st.markdown("""
         }
     }
 
-    /* FIX INVISIBLE TEXT IN INPUTS & SELECTBOXES */
+    /* High-contrast text input elements */
     div[data-baseweb="input"], div[data-baseweb="select"] {
         background-color: #1E293B !important;
         border-radius: 10px !important;
@@ -233,7 +233,7 @@ languages_map = {
     "English": {"stt": "en-IN", "tts": "en"},
     "Tamil (தமிழ்)": {"stt": "ta-IN", "tts": "ta"},
     "Kannada (కన్నడ)": {"stt": "kn-IN", "tts": "kn"},
-    "Marathi (मराठी)": {"stt": "mr-IN", "tts": "mr"},
+    "Marathi (మరాठी)": {"stt": "mr-IN", "tts": "mr"},
     "Bengali (বাংলা)": {"stt": "bn-IN", "tts": "bn"},
     "Gujarati (ગુજરાતી)": {"stt": "gu-IN", "tts": "gu"},
     "Malayalam (മലയാളം)": {"stt": "ml-IN", "tts": "ml"},
@@ -287,7 +287,6 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
     body = f"Citizen Name: {citizen_name}\nAddress: {citizen_address}\nSpoken Input: {transcribed_text}\nAI Note/Summary: {ai_summary}"
     msg.attach(MIMEText(body, 'plain'))
     
-    # Try Port 587 TLS first, fallback to SSL 465
     try:
         server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
         server.ehlo()
@@ -318,7 +317,6 @@ with tab1:
         farmer_address = st.text_input(labels["address_label"])
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # PULSE ANIMATED RECORDING CONTAINER
     st.markdown('<div class="pulse-card">', unsafe_allow_html=True)
     st.subheader("🎙️ Voice Input / మాట్లాడండి")
     audio_file = st.audio_input(labels["record_label"])
