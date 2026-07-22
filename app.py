@@ -12,10 +12,10 @@ from gtts import gTTS
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Uses standard gemini-flash alias to avoid endpoint version errors
-    model = genai.GenerativeModel('gemini-flash')
+    # Supported model configuration for google-generativeai
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
-    st.error("Gemini API key missing or invalid in Streamlit secrets!")
+    st.error(f"Gemini Configuration Error: {e}")
 
 # --- SPEECH RECOGNITION ENGINE ---
 def transcribe_actual_audio(audio_bytes, target_language_code):
@@ -81,19 +81,16 @@ def process_citizen_input(text_input, language_name):
         return category, content
         
     except Exception as e:
-        # Print actual error in Streamlit for debugging
         st.error(f"Gemini API Error: {e}")
-        
         fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
-        # Categorize as FALLBACK_GRIEVANCE so the query is routed via email automatically
         return "FALLBACK_GRIEVANCE", fallback_msg
 
-# --- PAGE CONFIGURATION & LIGHTISH-DARKER THEME WITH ANIMATIONS ---
+# --- PAGE CONFIGURATION & LIGHTISH-DARK THEME WITH ANIMATIONS ---
 st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="centered")
 
 st.markdown("""
     <style>
-    /* Global App Background - Deep Slate Tone */
+    /* Global Background - Slate Dark Tone */
     .stApp {
         background-color: #0F172A;
         color: #F8FAFC;
@@ -229,7 +226,7 @@ languages_map = {
     "Hindi (हिन्दी)": {"stt": "hi-IN", "tts": "hi"},
     "English": {"stt": "en-IN", "tts": "en"},
     "Tamil (தமிழ்)": {"stt": "ta-IN", "tts": "ta"},
-    "Kannada (ಕನ್ನಡ)": {"stt": "kn-IN", "tts": "kn"},
+    "Kannada (కన్నడ)": {"stt": "kn-IN", "tts": "kn"},
     "Marathi (मराठी)": {"stt": "mr-IN", "tts": "mr"},
     "Bengali (বাংলা)": {"stt": "bn-IN", "tts": "bn"},
     "Gujarati (ગુજરાતી)": {"stt": "gu-IN", "tts": "gu"},
@@ -266,13 +263,12 @@ labels = ui_translations.get(selected_ui_lang, ui_translations["English"])
 
 tab1, tab2 = st.tabs(["🎙️ Speak & Listen (వాయిస్ సేవ)", "📷 Document Scan (డాక్యుమెంట్ సేవ)"])
 
-# --- SMTP EMAIL DISPATCH (TLS PORT 587) ---
+# --- SMTP EMAIL DISPATCH ---
 def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citizen_name, citizen_address):
     try:
-        sender_email = st.secrets["SYSTEM_ALERT_EMAIL"]
-        # Strips spaces from App Password if present
-        sender_password = st.secrets["SYSTEM_ALERT_PASSWORD"].replace(" ", "")
-        receiver_email = st.secrets["GRIEVANCE_OFFICER_EMAIL"]
+        sender_email = st.secrets["SYSTEM_ALERT_EMAIL"].strip()
+        sender_password = st.secrets["SYSTEM_ALERT_PASSWORD"].replace(" ", "").strip()
+        receiver_email = st.secrets["GRIEVANCE_OFFICER_EMAIL"].strip()
     except Exception as e:
         st.error(f"Secrets configuration missing: {e}")
         return False
@@ -285,18 +281,25 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
     body = f"Citizen Name: {citizen_name}\nAddress: {citizen_address}\nSpoken Input: {transcribed_text}\nAI Note/Summary: {ai_summary}"
     msg.attach(MIMEText(body, 'plain'))
     
+    # Try Port 587 TLS first, fallback to SSL 465
     try:
-        # Standard TLS Connection for Gmail on Port 587
-        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
         server.ehlo()
         server.starttls()
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, receiver_email, msg.as_string())
         server.quit()
         return True
-    except Exception as e:
-        st.error(f"Email Dispatch Failed: {e}")
-        return False
+    except Exception as e1:
+        try:
+            server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, receiver_email, msg.as_string())
+            server.quit()
+            return True
+        except Exception as e2:
+            st.error(f"Email Dispatch Failed: {e1} | Fallback: {e2}")
+            return False
 
 # --- TAB 1: VOICE PORTAL ---
 with tab1:
@@ -349,7 +352,7 @@ with tab1:
                             if email_status:
                                 st.success("📧 Email successfully sent to Grievance Officer!")
                             else:
-                                st.error("⚠️ Could not send email. Ensure you have set up a Gmail App Password in Streamlit Secrets.")
+                                st.error("⚠️ Could not send email. Verify your Gmail App Password in Streamlit Secrets.")
 
                             msg_text = f"మీ ప్రశ్న లేదా ఫిర్యాదు అధికారులకు ఇమెయిల్ ద్వారా పంపబడింది, {farmer_name}."
                             st.info(msg_text)
