@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from PIL import Image
 import google.generativeai as genai
+from gtts import gTTS
 
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
@@ -31,6 +32,19 @@ def transcribe_actual_audio(audio_bytes, target_language_code):
     except Exception as e:
         return None
 
+# --- TEXT-TO-SPEECH (TTS) AUDIO GENERATOR ---
+def generate_speech_audio(text, gtts_lang_code):
+    """Converts written response text into spoken audio (mp3 bytes) using gTTS."""
+    try:
+        tts = gTTS(text=text, lang=gtts_lang_code, slow=False)
+        fp = io.BytesIO()
+        tts.write_to_fp(fp)
+        fp.seek(0)
+        return fp
+    except Exception as e:
+        st.error(f"Error generating voice audio: {e}")
+        return None
+
 # --- ROBUST AI TRIAGE & RESPONSE CORE ---
 def process_citizen_input(text_input, language_name):
     """
@@ -49,14 +63,14 @@ def process_citizen_input(text_input, language_name):
     OUTPUT FORMAT:
     First line MUST be exactly: CATEGORY: GENERAL_QUERY or CATEGORY: GRIEVANCE
     Second line MUST start with: RESPONSE:
-    Followed by your helpful answer in {language_name} (if GENERAL_QUERY) or concise English summary (if GRIEVANCE).
+    Followed by a clear, conversational, and direct answer in {language_name} suitable for being spoken aloud (if GENERAL_QUERY), or a concise English summary (if GRIEVANCE).
+    Do NOT use complex markdown or bullet points in the RESPONSE so that text-to-speech reads it smoothly.
     """
     
     try:
         response = model.generate_content(prompt)
         res_text = response.text.strip()
         
-        # Robust case-insensitive check
         if "GENERAL_QUERY" in res_text.upper():
             category = "GENERAL_QUERY"
         else:
@@ -69,7 +83,6 @@ def process_citizen_input(text_input, language_name):
             
         return category, content
     except Exception as e:
-        # Safe fallback so informational queries aren't accidentally sent to SMTP on failure
         return "GENERAL_QUERY", f"Information regarding: {text_input}"
 
 # --- SYSTEM UI CONFIGURATION ---
@@ -87,19 +100,19 @@ st.title("🌾 Grameena Seva AI Hub")
 st.write("Bridging the Linguistic Gap for Rural India")
 st.write("---")
 
-# Language code mapping for Indian regional languages
+# Language code mapping for Speech Recognition & gTTS Voice Output
 languages_map = {
-    "English": "en-IN",
-    "Hindi (हिन्दी)": "hi-IN",
-    "Telugu (తెలుగు)": "te-IN",
-    "Tamil (தமிழ்)": "ta-IN",
-    "Kannada (ಕನ್ನಡ)": "kn-IN",
-    "Marathi (मराठी)": "mr-IN",
-    "Bengali (বাংলা)": "bn-IN",
-    "Gujarati (ગુજરાતી)": "gu-IN",
-    "Malayalam (മലയാളം)": "ml-IN",
-    "Punjabi (ਪੰਜਾਬੀ)": "pa-IN",
-    "Urdu (اُردُو)": "ur-IN"
+    "English": {"stt": "en-IN", "tts": "en"},
+    "Hindi (हिन्दी)": {"stt": "hi-IN", "tts": "hi"},
+    "Telugu (తెలుగు)": {"stt": "te-IN", "tts": "te"},
+    "Tamil (தமிழ்)": {"stt": "ta-IN", "tts": "ta"},
+    "Kannada (ಕನ್ನಡ)": {"stt": "kn-IN", "tts": "kn"},
+    "Marathi (मराठी)": {"stt": "mr-IN", "tts": "mr"},
+    "Bengali (বাংলা)": {"stt": "bn-IN", "tts": "bn"},
+    "Gujarati (ગુજરાતી)": {"stt": "gu-IN", "tts": "gu"},
+    "Malayalam (മലയാളം)": {"stt": "ml-IN", "tts": "ml"},
+    "Punjabi (ਪੰਜਾਬੀ)": {"stt": "pa-IN", "tts": "pa"},
+    "Urdu (اُردُو)": {"stt": "ur-IN", "tts": "ur"}
 }
 
 # UI Labels Translation Dictionary
@@ -173,10 +186,11 @@ ui_translations = {
 }
 
 selected_ui_lang = st.selectbox("🌐 Choose your language / भाषा चुनें", list(languages_map.keys()))
-lang_code = languages_map[selected_ui_lang]
+stt_code = languages_map[selected_ui_lang]["stt"]
+tts_code = languages_map[selected_ui_lang]["tts"]
 labels = ui_translations.get(selected_ui_lang, ui_translations["English"])
 
-st.write(f"App set to: **{selected_ui_lang}** (Code: `{lang_code}`)")
+st.write(f"App set to: **{selected_ui_lang}**")
 st.write("---")
 
 tab1, tab2 = st.tabs(["🎙️ Talk to Mitra (Voice)", "📷 Scan Documents (OCR)"])
@@ -243,7 +257,7 @@ with tab1:
         audio_bytes = audio_file.read()
         
         with st.spinner(f"Transcribing voice in {selected_ui_lang}..."):
-            user_text = transcribe_actual_audio(audio_bytes, lang_code)
+            user_text = transcribe_actual_audio(audio_bytes, stt_code)
             
         if user_text:
             st.subheader("📋 Captured Input:")
@@ -252,13 +266,18 @@ with tab1:
             # Validation Gate Check
             if farmer_name.strip() and farmer_address.strip():
                 if st.button(labels["submit_btn"]):
-                    with st.spinner("AI analyzing query & determining routing action..."):
+                    with st.spinner("AI analyzing query & generating voice response..."):
                         category, result_content = process_citizen_input(user_text, selected_ui_lang)
                         
                         if category == "GENERAL_QUERY":
                             st.success("🤖 AI Mitra Assistant Answer:")
                             st.markdown(f"### 💡 Solution:\n{result_content}")
-                            st.caption("ℹ️ This query was answered directly by AI as it did not require government intervention.")
+                            
+                            # --- VOICE OUTPUT FOR VILLAGERS ---
+                            audio_stream = generate_speech_audio(result_content, tts_code)
+                            if audio_stream:
+                                st.subheader("🔊 Listen to Answer (సమాధానం వినండి):")
+                                st.audio(audio_stream, format="audio/mp3", autoplay=True)
                             
                         elif category == "GRIEVANCE":
                             st.warning("🚨 Official Action Required: Routing issue to government portal...")
@@ -270,8 +289,12 @@ with tab1:
                                 farmer_address
                             )
                             
+                            confirmation_msg = f"Grievance filed successfully for {farmer_name}. Dispatch notification sent to government officials."
                             if email_status:
-                                st.success(f"🎉 Grievance filed successfully for {farmer_name}! Dispatch notification sent to government officials.")
+                                st.success(f"🎉 {confirmation_msg}")
+                                audio_stream = generate_speech_audio(confirmation_msg, tts_code)
+                                if audio_stream:
+                                    st.audio(audio_stream, format="audio/mp3", autoplay=True)
                             else:
                                 st.error("Submission failed. Please check your mail server credentials in Streamlit Secrets.")
             else:
