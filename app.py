@@ -12,14 +12,12 @@ from gtts import gTTS
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Standard stable flash model
     model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error("Gemini API key missing or invalid in Streamlit secrets!")
 
 # --- SPEECH RECOGNITION ENGINE ---
 def transcribe_actual_audio(audio_bytes, target_language_code):
-    """Processes real microphone audio bytes and extracts spoken words using Google Speech Recognition."""
     recognizer = sr.Recognizer()
     try:
         audio_file = io.BytesIO(audio_bytes)
@@ -33,9 +31,7 @@ def transcribe_actual_audio(audio_bytes, target_language_code):
 
 # --- TEXT-TO-SPEECH (TTS) AUDIO GENERATOR ---
 def generate_speech_audio(text, gtts_lang_code):
-    """Converts response text into clean, natural spoken voice audio using gTTS."""
     try:
-        # Strip markdown symbols so speech engine doesn't stutter or speak punctuation
         clean_text = text.replace("*", "").replace("#", "").replace("-", "").replace("`", "")
         tts = gTTS(text=clean_text, lang=gtts_lang_code, slow=False)
         fp = io.BytesIO()
@@ -46,11 +42,8 @@ def generate_speech_audio(text, gtts_lang_code):
         st.error(f"Error generating voice audio: {e}")
         return None
 
-# --- DYNAMIC MULTI-LANGUAGE AI TRIAGE CORE ---
+# --- MULTI-LANGUAGE AI TRIAGE CORE ---
 def process_citizen_input(text_input, language_name):
-    """
-    Dynamically analyzes citizen queries in any language and provides tailored responses.
-    """
     prompt = f"""
     You are Grameena Seva AI, an empathetic voice assistant for rural citizens in India.
     
@@ -87,24 +80,90 @@ def process_citizen_input(text_input, language_name):
         return category, content
         
     except Exception as e:
-        # Dynamic fallback matching user's specific text directly without hardcoding unrelated schemes
         fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
         return "GENERAL_QUERY", fallback_msg
 
-# --- SYSTEM UI CONFIGURATION ---
-st.set_page_config(page_title="Grameena Seva App", page_icon="🌾", layout="centered")
+# --- PAGE CONFIGURATION & CUSTOM UI STYLES ---
+st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="centered")
 
 st.markdown("""
     <style>
-    .stButton>button { width: 100%; height: 60px; background-color: #E2725B; color: white; border-radius: 10px; font-weight: bold; font-size: 18px; }
+    /* Global Styling */
+    .stApp {
+        background-color: #F7F9F6;
+    }
+    
+    /* Header Banner */
+    .header-box {
+        background: linear-gradient(135deg, #1b5e20, #388e3c);
+        color: white;
+        padding: 24px;
+        border-radius: 16px;
+        text-align: center;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .header-box h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 800;
+        color: #ffffff;
+    }
+    .header-box p {
+        margin-top: 6px;
+        font-size: 15px;
+        color: #e8f5e9;
+    }
+
+    /* Cards */
+    .card-container {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 14px;
+        box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
+        margin-bottom: 18px;
+        border-left: 5px solid #2e7d32;
+    }
+
+    /* Primary Action Button */
+    .stButton>button {
+        width: 100%;
+        height: 56px;
+        background: linear-gradient(90deg, #e65100, #f57c00);
+        color: white !important;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 18px;
+        border: none;
+        box-shadow: 0px 4px 10px rgba(230, 81, 0, 0.3);
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0px 6px 14px rgba(230, 81, 0, 0.4);
+    }
+
+    /* Audio Box Highlight */
+    .audio-card {
+        background-color: #e8f5e9;
+        border: 2px solid #81c784;
+        padding: 16px;
+        border-radius: 12px;
+        margin-top: 15px;
+        text-align: center;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🌾 Grameena Seva AI Hub")
-st.write("Multilingual Voice Assistant for Rural Citizens")
-st.write("---")
+# --- HEADER SECTION ---
+st.markdown("""
+    <div class="header-box">
+        <h1>🌾 Grama Seva AI Hub</h1>
+        <p>ఆల్-ఇన్-వన్ గ్రామీణ వాయిస్ సహాయకుడు | Voice Portal for Rural India</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Supported Languages for Voice Input & Voice Output
+# Supported Languages Mapping
 languages_map = {
     "Telugu (తెలుగు)": {"stt": "te-IN", "tts": "te"},
     "Hindi (हिन्दी)": {"stt": "hi-IN", "tts": "hi"},
@@ -121,22 +180,22 @@ languages_map = {
 
 ui_translations = {
     "English": {
-        "name_label": "👤 Enter Full Name *",
-        "address_label": "🏠 Enter Village & Address *",
-        "record_label": "Press record and speak naturally in your chosen language",
-        "submit_btn": "🚀 Process Request & Play Voice Answer"
+        "name_label": "👤 Citizen Full Name *",
+        "address_label": "🏠 Village & Address *",
+        "record_label": "Tap microphone and speak your query",
+        "submit_btn": "🔊 Process & Listen to Response"
     },
     "Telugu (తెలుగు)": {
-        "name_label": "👤 పూర్తి పేరు నమోదు చేయండి *",
-        "address_label": "🏠 గ్రామం మరియు చిరునామా నమోదు చేయండి *",
-        "record_label": "రైటు బటన్ నొక్కి మీ మాట మాట్లాడండి",
-        "submit_btn": "🚀 సమాధానం వినండి (Submit)"
+        "name_label": "👤 మీ పూర్తి పేరు నమోదు చేయండి *",
+        "address_label": "🏠 మీ గ్రామం & చిరునామా *",
+        "record_label": "మైక్ బటన్ నొక్కి మీ మాట్లాడండి",
+        "submit_btn": "🔊 సమాధానం వినండి (Submit)"
     },
     "Hindi (हिन्दी)": {
-        "name_label": "👤 पूरा नाम दर्ज करें *",
-        "address_label": "🏠 गांव और पता दर्ज करें *",
-        "record_label": "रिकॉर्ड दबाएं और अपनी भाषा में बोलें",
-        "submit_btn": "🚀 उत्तर सुनें (Submit)"
+        "name_label": "👤 पूरा नाम *",
+        "address_label": "🏠 गांव और पता *",
+        "record_label": "माइक दबाएं और अपनी बात बोलें",
+        "submit_btn": "🔊 उत्तर सुनें (Submit)"
     }
 }
 
@@ -145,9 +204,7 @@ stt_code = languages_map[selected_ui_lang]["stt"]
 tts_code = languages_map[selected_ui_lang]["tts"]
 labels = ui_translations.get(selected_ui_lang, ui_translations["English"])
 
-st.write("---")
-
-tab1, tab2 = st.tabs(["🎙️ Talk to Mitra (Voice)", "📷 Scan Documents (OCR)"])
+tab1, tab2 = st.tabs(["🎙️ Speak & Listen (వాయిస్ సేవ)", "📷 Document Scan (డాక్యుమెంట్ సేవ)"])
 
 # --- SMTP EMAIL DISPATCH ---
 def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citizen_name, citizen_address):
@@ -175,64 +232,67 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
     except Exception:
         return False
 
-# --- VOICE INTERFACE TAB ---
+# --- TAB 1: VOICE PORTAL ---
 with tab1:
-    st.subheader("📝 Citizen Details")
-    farmer_name = st.text_input(labels["name_label"])
-    farmer_address = st.text_area(labels["address_label"], height=70)
+    st.markdown('<div class="card-container">', unsafe_allow_html=True)
+    st.subheader("📝 Citizen Identity / వివరాలు")
+    col1, col2 = st.columns(2)
+    with col1:
+        farmer_name = st.text_input(labels["name_label"])
+    with col2:
+        farmer_address = st.text_input(labels["address_label"])
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    st.write("---")
-    st.subheader("🎙️ Speak Your Query / Complaint")
+    st.markdown('<div class="card-container">', unsafe_allow_html=True)
+    st.subheader("🎙️ Voice Input / మాట్లాడండి")
     audio_file = st.audio_input(labels["record_label"])
+    st.markdown('</div>', unsafe_allow_html=True)
     
     if audio_file:
-        st.success("Audio captured!")
         audio_bytes = audio_file.read()
         
-        with st.spinner(f"Processing spoken input in {selected_ui_lang}..."):
+        with st.spinner("Processing speech recognition..."):
             user_text = transcribe_actual_audio(audio_bytes, stt_code)
             
         if user_text:
-            st.subheader("📋 Captured Input:")
-            st.info(f'"{user_text}"')
+            st.info(f'🎙️ **You Said:** "{user_text}"')
             
             if farmer_name.strip() and farmer_address.strip():
                 if st.button(labels["submit_btn"]):
-                    with st.spinner("AI is generating tailored voice response..."):
+                    with st.spinner("Generating voice answer..."):
                         category, result_content = process_citizen_input(user_text, selected_ui_lang)
                         
                         if category == "GENERAL_QUERY":
-                            st.success("🤖 AI Voice Response:")
-                            st.markdown(f"### 💡 Solution:\n{result_content}")
+                            st.success("💡 **AI Mitra Response:**")
+                            st.write(result_content)
                             
-                            # GENERATE AND PLAY AUDIO
                             audio_stream = generate_speech_audio(result_content, tts_code)
                             if audio_stream:
-                                st.subheader("🔊 Audio Answer (వినడానికి ప్లే నొక్కండి):")
+                                st.markdown('<div class="audio-card">', unsafe_allow_html=True)
+                                st.subheader("🔊 Click below to listen / వినడానికి ప్లే నొక్కండి:")
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
+                                st.markdown('</div>', unsafe_allow_html=True)
                                 
                         elif category == "GRIEVANCE":
-                            st.warning("🚨 Official Complaint Registered!")
+                            st.warning("🚨 Official Complaint Registering...")
                             email_status = dispatch_grievance_email(
                                 selected_ui_lang, user_text, result_content, farmer_name, farmer_address
                             )
                             
-                            msg_text = f"మీ ఫిర్యాదు విజయవంతంగా నమోదు చేయబడింది {farmer_name}. సంబంధిత అధికారులకు ఇమెయిల్ ద్వారా సమాచారం అందించబడింది."
+                            msg_text = f"మీ ఫిర్యాదు విజయవంతంగా నమోదైంది {farmer_name}. అధికారులకు నివేదిక పంపబడింది."
                             st.success(msg_text)
                             
                             audio_stream = generate_speech_audio(msg_text, tts_code)
                             if audio_stream:
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
             else:
-                st.warning("⚠️ Please enter both your Name and Address above before submitting.")
-        else:
-            st.error("Voice not recognized clearly. Please check your microphone and speak again.")
+                st.warning("⚠️ Please fill in Name and Address fields above.")
 
-# --- DOCUMENT SCANNER TAB ---
+# --- TAB 2: DOCUMENT SCANNER ---
 with tab2:
-    st.subheader("Document Scan / Camera")
-    uploaded_image = st.camera_input("Take photo of Land Record / ID")
+    st.subheader("📷 Land Record & Document Capture")
+    uploaded_image = st.camera_input("Snap picture of document")
     if uploaded_image:
         image = Image.open(uploaded_image)
-        st.image(image, caption="Uploaded Document", use_container_width=True)
-        st.info("Document captured successfully.")
+        st.image(image, caption="Captured Record", use_container_width=True)
+        st.success("Document attached successfully.")
