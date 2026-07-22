@@ -12,11 +12,20 @@ from gtts import gTTS
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Clean model identifier string for standard google-generativeai SDK
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # Auto-select the first available working model to avoid 404 errors
+    available_models = [
+        m.name for m in genai.list_models() 
+        if 'generateContent' in m.supported_generation_methods
+    ]
+    
+    if available_models:
+        # Uses the first valid model found for your API key (e.g., models/gemini-1.5-flash)
+        model = genai.GenerativeModel(available_models[0])
+    else:
+        model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error(f"Gemini Configuration Error: {e}")
-
 # --- SPEECH RECOGNITION ENGINE ---
 def transcribe_actual_audio(audio_bytes, target_language_code):
     recognizer = sr.Recognizer()
