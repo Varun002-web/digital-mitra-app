@@ -12,7 +12,7 @@ from gtts import gTTS
 # --- INITIALIZE GEMINI AI CLIENT ---
 try:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # Standard alias that automatically routes to the latest active Flash model
+    # Uses standard gemini-flash alias to avoid endpoint version errors
     model = genai.GenerativeModel('gemini-flash')
 except Exception as e:
     st.error("Gemini API key missing or invalid in Streamlit secrets!")
@@ -85,77 +85,82 @@ def process_citizen_input(text_input, language_name):
         st.error(f"Gemini API Error: {e}")
         
         fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
-        # Categorized as FALLBACK_GRIEVANCE so system automatically emails officials
+        # Categorize as FALLBACK_GRIEVANCE so the query is routed via email automatically
         return "FALLBACK_GRIEVANCE", fallback_msg
 
-# --- PAGE CONFIGURATION & ANIMATED CSS STYLES ---
+# --- PAGE CONFIGURATION & LIGHTISH-DARKER THEME WITH ANIMATIONS ---
 st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="centered")
 
 st.markdown("""
     <style>
-    /* Global Background */
+    /* Global App Background - Deep Slate Tone */
     .stApp {
-        background-color: #f4f7f4;
+        background-color: #0F172A;
+        color: #F8FAFC;
     }
     
     /* Header Banner */
     .header-box {
-        background: linear-gradient(135deg, #1b5e20, #2e7d32);
-        color: white;
+        background: linear-gradient(135deg, #1E293B, #334155);
+        border: 1px solid #475569;
+        color: #F8FAFC;
         padding: 24px;
         border-radius: 20px;
         text-align: center;
-        box-shadow: 0px 8px 20px rgba(27, 94, 32, 0.2);
+        box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.4);
         margin-bottom: 25px;
     }
     .header-box h1 {
         margin: 0;
         font-size: 30px;
         font-weight: 800;
-        color: #ffffff;
+        color: #38BDF8;
     }
     .header-box p {
         margin-top: 6px;
         font-size: 16px;
-        color: #e8f5e9;
+        color: #94A3B8;
     }
 
     /* Standard Card Container */
     .card-container {
-        background-color: #ffffff;
+        background-color: #1E293B;
         padding: 22px;
         border-radius: 16px;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.04);
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
         margin-bottom: 20px;
-        border-left: 6px solid #2e7d32;
+        border-left: 6px solid #10B981;
+        border-top: 1px solid #334155;
+        border-right: 1px solid #334155;
+        border-bottom: 1px solid #334155;
     }
 
     /* 🎙️ PULSE ANIMATION FOR VOICE RECORDING SECTION */
     .pulse-card {
-        background-color: #ffffff;
+        background-color: #1E293B;
         padding: 22px;
         border-radius: 16px;
         margin-bottom: 20px;
-        border: 2px solid #81c784;
+        border: 2px solid #059669;
         animation: pulse-border 2s infinite;
     }
 
     @keyframes pulse-border {
         0% {
-            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
         }
         70% {
-            box-shadow: 0 0 0 15px rgba(76, 175, 80, 0);
+            box-shadow: 0 0 0 15px rgba(16, 185, 129, 0);
         }
         100% {
-            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
         }
     }
 
     /* 🔊 WAVE ANIMATION FOR AUDIO PLAYER CONTAINER */
     .wave-card {
-        background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
-        border: 2px solid #4caf50;
+        background: linear-gradient(135deg, #1E293B, #0F172A);
+        border: 2px solid #F59E0B;
         padding: 20px;
         border-radius: 16px;
         margin-top: 20px;
@@ -165,35 +170,47 @@ st.markdown("""
 
     @keyframes wave-glow {
         0% {
-            border-color: #4caf50;
-            box-shadow: 0px 0px 8px rgba(76, 175, 80, 0.3);
+            border-color: #10B981;
+            box-shadow: 0px 0px 10px rgba(16, 185, 129, 0.3);
         }
         50% {
-            border-color: #ff9800;
-            box-shadow: 0px 0px 18px rgba(255, 152, 0, 0.5);
+            border-color: #F59E0B;
+            box-shadow: 0px 0px 20px rgba(245, 158, 11, 0.5);
         }
         100% {
-            border-color: #4caf50;
-            box-shadow: 0px 0px 8px rgba(76, 175, 80, 0.3);
+            border-color: #10B981;
+            box-shadow: 0px 0px 10px rgba(16, 185, 129, 0.3);
         }
     }
 
-    /* Vibrant Submit Button */
+    /* Primary Interactive Submit Button */
     .stButton>button {
         width: 100%;
         height: 60px;
-        background: linear-gradient(90deg, #e65100, #f57c00);
-        color: white !important;
+        background: linear-gradient(90deg, #D97706, #F59E0B);
+        color: #FFFFFF !important;
         border-radius: 14px;
         font-weight: 800;
         font-size: 20px;
         border: none;
-        box-shadow: 0px 6px 15px rgba(230, 81, 0, 0.3);
+        box-shadow: 0px 6px 15px rgba(217, 119, 6, 0.4);
         transition: all 0.3s ease;
     }
     .stButton>button:hover {
         transform: translateY(-2px);
-        box-shadow: 0px 8px 20px rgba(230, 81, 0, 0.5);
+        box-shadow: 0px 8px 20px rgba(245, 158, 11, 0.6);
+    }
+
+    /* Input Field Overrides for Dark Theme */
+    div[data-baseweb="input"] {
+        background-color: #0F172A !important;
+        border-radius: 10px;
+    }
+    input {
+        color: #F8FAFC !important;
+    }
+    label {
+        color: #E2E8F0 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -249,13 +266,15 @@ labels = ui_translations.get(selected_ui_lang, ui_translations["English"])
 
 tab1, tab2 = st.tabs(["🎙️ Speak & Listen (వాయిస్ సేవ)", "📷 Document Scan (డాక్యుమెంట్ సేవ)"])
 
-# --- SMTP EMAIL DISPATCH ---
+# --- SMTP EMAIL DISPATCH (TLS PORT 587) ---
 def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citizen_name, citizen_address):
     try:
         sender_email = st.secrets["SYSTEM_ALERT_EMAIL"]
-        sender_password = st.secrets["SYSTEM_ALERT_PASSWORD"]
+        # Strips spaces from App Password if present
+        sender_password = st.secrets["SYSTEM_ALERT_PASSWORD"].replace(" ", "")
         receiver_email = st.secrets["GRIEVANCE_OFFICER_EMAIL"]
-    except Exception:
+    except Exception as e:
+        st.error(f"Secrets configuration missing: {e}")
         return False
     
     msg = MIMEMultipart()
@@ -267,7 +286,10 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
     msg.attach(MIMEText(body, 'plain'))
     
     try:
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        # Standard TLS Connection for Gmail on Port 587
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.ehlo()
+        server.starttls()
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, receiver_email, msg.as_string())
         server.quit()
@@ -327,7 +349,7 @@ with tab1:
                             if email_status:
                                 st.success("📧 Email successfully sent to Grievance Officer!")
                             else:
-                                st.error("⚠️ Could not send email. Please check your SMTP email secrets configuration.")
+                                st.error("⚠️ Could not send email. Ensure you have set up a Gmail App Password in Streamlit Secrets.")
 
                             msg_text = f"మీ ప్రశ్న లేదా ఫిర్యాదు అధికారులకు ఇమెయిల్ ద్వారా పంపబడింది, {farmer_name}."
                             st.info(msg_text)
