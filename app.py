@@ -9,7 +9,7 @@ from PIL import Image
 from google import genai
 from gtts import gTTS
 
-# --- INITIALIZE GEMINI AI CLIENT (NEW SDK) ---
+# --- INITIALIZE GEMINI AI CLIENT ---
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=api_key)
@@ -42,6 +42,21 @@ def generate_speech_audio(text, gtts_lang_code):
         st.error(f"Error generating voice audio: {e}")
         return None
 
+# --- DYNAMIC MULTI-LANGUAGE FALLBACK MESSAGES ---
+FALLBACK_MESSAGES = {
+    "Hindi (हिन्दी)": "आपका प्रश्न अधिकारियों को भेज दिया गया है। सहायता के लिए निकटतम सेवा केंद्र से संपर्क करें।",
+    "Telugu (తెలుగు)": "మీ ప్రశ్న అధికారులకు పంపబడింది. సహాయం కోసం సమీపంలో ఉన్న సేవా కేంద్రాన్ని సంప్రదించండి.",
+    "English": "Your query has been forwarded to the officers. Please contact the nearest service center for further assistance.",
+    "Tamil (தமிழ்)": "உங்கள் கேள்வி அதிகாரிகளுக்கு அனுப்பப்பட்டுள்ளது. உதவிக்கு அருகிலுள்ள சேவை மையத்தைத் தொடர்பு கொள்ளவும்.",
+    "Kannada (కన్నడ)": "നിങ്ങളുടെ ప్రశ్న అధికారులకు పంపబడింది. సహాయಕ್ಕಾಗಿ ಹತ್ತಿರದ ಸೇವಾ ಕೇಂದ್ರವನ್ನು ಸಂಪರ್ಕಿಸಿ.",
+    "Marathi (मराठी)": "तुमचा प्रश्न अधिकाऱ्यांकडे पाठवण्यात आला आहे. मदतीसाठी जवळच्या सेवा केंद्राशी संपर्क साधा.",
+    "Bengali (বাংলা)": "আপনার প্রশ্নটি কর্মকর্তাদের কাছে পাঠানো হয়েছে। সহায়তার জন্য নিকটস্থ সেবা কেন্দ্রে যোগাযোগ করুন।",
+    "Gujarati (ગુજરાતી)": "તમારો પ્રશ્ન અધિકારીઓને મોકલવામાં આવ્યો છે. સહાય માટે जवळના સેવા કેન્દ્રનો સંપર્ક કરો.",
+    "Malayalam (മലയാളം)": "നിങ്ങളുടെ ചോദ്യം ഉദ്യോഗസ്ഥർക്ക് കൈമാറി. സഹായത്തിന് അടുത്തുള്ള സേവന കേന്ദ്രവുമായി ബന്ധപ്പെടുക.",
+    "Punjabi (ਪੰਜਾਬੀ)": "ਤੁਹਾਡਾ ਸਵਾਲ ਅਧਿਕਾਰੀਆਂ ਨੂੰ ਭੇਜ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਸਹਾਇਤਾ ਲਈ ਨੇੜਲੇ ਸੇਵਾ ਕੇਂਦਰ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
+    "Urdu (اُردُو)": "آپ کا سوال حکام کو بھیج دیا گیا ہے۔ مدد کے لیے قریبی سروس سنٹر سے رابطہ کریں۔"
+}
+
 # --- MULTI-LANGUAGE AI TRIAGE CORE ---
 def process_citizen_input(text_input, language_name):
     prompt = f"""
@@ -67,6 +82,7 @@ def process_citizen_input(text_input, language_name):
     """
     
     try:
+        # FIXED MODEL NAME TO STABLE RELEASE
         response = client.models.generate_content(
             model='gemini-1.5-flash',
             contents=prompt,
@@ -84,7 +100,8 @@ def process_citizen_input(text_input, language_name):
         
     except Exception as e:
         st.error(f"Gemini API Error: {e}")
-        fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
+        # DYNAMIC MULTI-LANGUAGE FALLBACK
+        fallback_msg = FALLBACK_MESSAGES.get(language_name, FALLBACK_MESSAGES["English"])
         return "FALLBACK_GRIEVANCE", fallback_msg
 
 # --- PAGE CONFIGURATION & DARK THEME ---
@@ -92,10 +109,7 @@ st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="cent
 
 st.markdown("""
     <style>
-    .stApp {
-        background-color: #0F172A;
-        color: #F8FAFC;
-    }
+    .stApp { background-color: #0F172A; color: #F8FAFC; }
     .header-box {
         background: linear-gradient(135deg, #1E293B, #334155);
         border: 1px solid #475569;
@@ -158,12 +172,12 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 languages_map = {
-    "Telugu (తెలుగు)": {"stt": "te-IN", "tts": "te"},
     "Hindi (हिन्दी)": {"stt": "hi-IN", "tts": "hi"},
+    "Telugu (తెలుగు)": {"stt": "te-IN", "tts": "te"},
     "English": {"stt": "en-IN", "tts": "en"},
     "Tamil (தமிழ்)": {"stt": "ta-IN", "tts": "ta"},
-    "Kannada (కన్నడ)": {"stt": "kn-IN", "tts": "kn"},
-    "Marathi (మరాఠీ)": {"stt": "mr-IN", "tts": "mr"},
+    "Kannada (ಕನ್ನಡ)": {"stt": "kn-IN", "tts": "kn"},
+    "Marathi (मराठी)": {"stt": "mr-IN", "tts": "mr"},
     "Bengali (বাংলা)": {"stt": "bn-IN", "tts": "bn"},
     "Gujarati (ગુજરાતી)": {"stt": "gu-IN", "tts": "gu"},
     "Malayalam (മലയാളം)": {"stt": "ml-IN", "tts": "ml"},
@@ -178,26 +192,26 @@ ui_translations = {
         "record_label": "Tap mic and speak your query",
         "submit_btn": "🔊 Process & Play Voice Response"
     },
-    "Telugu (తెలుగు)": {
-        "name_label": "👤 మీ పూర్తి పేరు నమోదు చేయండి *",
-        "address_label": "🏠 మీ గ్రామం & చిరునామా *",
-        "record_label": "మైక్ బటన్ నొక్కి మాట్లాడండి",
-        "submit_btn": "🔊 సమాధానం వినండి (Submit)"
-    },
     "Hindi (हिन्दी)": {
         "name_label": "👤 पूरा नाम *",
         "address_label": "🏠 गांव और पता *",
         "record_label": "माइक दबाएं और बोलें",
         "submit_btn": "🔊 उत्तर सुनें (Submit)"
+    },
+    "Telugu (తెలుగు)": {
+        "name_label": "👤 మీ పూర్తి పేరు నమోదు చేయండి *",
+        "address_label": "🏠 మీ గ్రామం & చిరునామా *",
+        "record_label": "మైక్ బటన్ నొక్కి మాట్లాడండి",
+        "submit_btn": "🔊 సమాధానం వినండి (Submit)"
     }
 }
 
-selected_ui_lang = st.selectbox("🌐 Select Language / భాషను ఎంచుకోండి", list(languages_map.keys()))
+selected_ui_lang = st.selectbox("🌐 Select Language / भाषा चुनें / భాషను ఎంచుకోండి", list(languages_map.keys()))
 stt_code = languages_map[selected_ui_lang]["stt"]
 tts_code = languages_map[selected_ui_lang]["tts"]
 labels = ui_translations.get(selected_ui_lang, ui_translations["English"])
 
-tab1, tab2 = st.tabs(["🎙️ Speak & Listen (వాయిస్ సేవ)", "📷 Document Scan (డాక్యుమెంట్ సేవ)"])
+tab1, tab2 = st.tabs(["🎙️ Speak & Listen", "📷 Document Scan"])
 
 # --- SMTP EMAIL DISPATCH ---
 def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citizen_name, citizen_address):
@@ -239,7 +253,7 @@ def dispatch_grievance_email(original_lang, transcribed_text, ai_summary, citize
 # --- TAB 1: VOICE PORTAL ---
 with tab1:
     st.markdown('<div class="card-container">', unsafe_allow_html=True)
-    st.subheader("📝 Citizen Identity / వివరాలు")
+    st.subheader("📝 Citizen Identity / विवरण")
     col1, col2 = st.columns(2)
     with col1:
         farmer_name = st.text_input(labels["name_label"])
@@ -248,7 +262,7 @@ with tab1:
     st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('<div class="pulse-card">', unsafe_allow_html=True)
-    st.subheader("🎙️ Voice Input / మాట్లాడండి")
+    st.subheader("🎙️ Voice Input / बोलें")
     audio_file = st.audio_input(labels["record_label"])
     st.markdown('</div>', unsafe_allow_html=True)
     
@@ -273,7 +287,7 @@ with tab1:
                             audio_stream = generate_speech_audio(result_content, tts_code)
                             if audio_stream:
                                 st.markdown('<div class="wave-card">', unsafe_allow_html=True)
-                                st.subheader("🔊 Listen to Answer / సమాధానం వినండి:")
+                                st.subheader("🔊 Listen to Answer:")
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
                                 st.markdown('</div>', unsafe_allow_html=True)
                                 
@@ -288,10 +302,9 @@ with tab1:
                             else:
                                 st.error("⚠️ Could not send email. Verify your Gmail App Password in Streamlit Secrets.")
 
-                            msg_text = f"మీ ప్రశ్న లేదా ఫిర్యాదు అధికారులకు ఇమెయిల్ ద్వారా పంపబడింది, {farmer_name}."
-                            st.info(msg_text)
+                            st.info(result_content)
                             
-                            audio_stream = generate_speech_audio(msg_text, tts_code)
+                            audio_stream = generate_speech_audio(result_content, tts_code)
                             if audio_stream:
                                 st.markdown('<div class="wave-card">', unsafe_allow_html=True)
                                 st.audio(audio_stream, format="audio/mp3", autoplay=True)
