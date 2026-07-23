@@ -84,7 +84,7 @@ def process_citizen_input(text_input, language_name):
     try:
         # Use the stable release tag for the google-genai library
         response = client.models.generate_content(
-            model='gemini-2.5',
+            model='gemini-3.5-flash-lite',
             contents=prompt,
         )
         res_text = response.text.strip()
