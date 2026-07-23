@@ -2,12 +2,10 @@ import streamlit as st
 import os
 import smtplib
 import io
-import re
+import speech_recognition as sr
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from PIL import Image
 from google import genai
-from google.genai import types
 from gtts import gTTS
 
 # --- INITIALIZE GEMINI AI CLIENT ---
@@ -17,73 +15,140 @@ try:
 except Exception as e:
     st.error(f"Gemini Configuration Error: {e}")
 
+# --- SPEECH RECOGNITION ENGINE ---
+def transcribe_actual_audio(audio_bytes):
+    recognizer = sr.Recognizer()
+    try:
+        audio_file = io.BytesIO(audio_bytes)
+        with sr.AudioFile(audio_file) as source:
+            recognizer.adjust_for_ambient_noise(source, duration=0.5)
+            audio_data = recognizer.record(source)
+            # Try transcribing without restricting language
+            actual_text = recognizer.recognize_google(audio_data)
+            return actual_text
+    except Exception:
+        return None
+
 # --- TEXT-TO-SPEECH (TTS) AUDIO GENERATOR ---
-def generate_speech_audio(text, gtts_lang_code):
+def generate_speech_audio(text, gtts_lang_code='hi'):
     try:
         clean_text = text.replace("*", "").replace("#", "").replace("-", "").replace("`", "")
-        # Fallback to hindi if code is unparseable
-        lang = gtts_lang_code if len(gtts_lang_code) == 2 else 'hi' 
-        tts = gTTS(text=clean_text, lang=lang, slow=False)
+        tts = gTTS(text=clean_text, lang=gtts_lang_code, slow=False)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
         fp.seek(0)
         return fp
     except Exception as e:
-        st.error(f"Error generating voice audio: {e}")
-        return None
+        # Fallback to English TTS if specific language fails
+        try:
+            tts = gTTS(text=clean_text, lang='en', slow=False)
+            fp = io.BytesIO()
+            tts.write_to_fp(fp)
+            fp.seek(0)
+            return fp
+        except Exception:
+            return None
 
-# --- MULTIMODAL AI TRIAGE CORE (AUTO-DETECTS AUDIO LANGUAGE) ---
-def process_audio_with_gemini(audio_bytes):
-    prompt = """
+# --- AUTO-DETECTING MULTI-LANGUAGE AI TRIAGE ---
+def process_citizen_input_auto(text_input):
+    prompt = f"""
     You are Grameena Seva AI, an empathetic voice assistant for rural citizens in India.
-    Listen to the attached audio query.
+    
+    The citizen spoke the following query:
+    "{text_input}"
 
     INSTRUCTIONS:
-    1. Detect the language the user is speaking.
-    2. CATEGORY CLASSIFICATION: 
-       - Output 'CATEGORY: GENERAL_QUERY' for schemes, subsidies, loans, land value, or general help.
-       - Output 'CATEGORY: GRIEVANCE' ONLY for broken utilities, delays, or corruption.
-    3. RESPONSE GENERATION: Answer their specific question directly. 
-       - Respond ENTIRELY in the EXACT SAME language they spoke in.
-       - Use simple, conversational spoken language. No bullet points or complex formatting.
-    4. Provide the exact transcript of what they said.
-    5. Provide the 2-letter ISO language code for their language (e.g., 'te' for Telugu, 'hi' for Hindi, 'ta' for Tamil, 'mr' for Marathi, 'en' for English).
+    1. LANGUAGE DETECTION:
+       - Automatically detect the language of the spoken text (e.g., Hindi, Telugu, Tamil, Marathi, English, etc.).
+       - Store the detected language name in standard English (e.g., 'Hindi', 'Telugu').
+       - Provide the ISO 639-1 2-letter language code for TTS playback (e.g., 'hi' for Hindi, 'te' for Telugu, 'en' for English, 'ta' for Tamil, 'mr' for Marathi, 'bn' for Bengali).
 
-    OUTPUT FORMAT STRICTLY LIKE THIS:
-    TRANSCRIPT: <What the user actually said>
-    TTS_CODE: <2-letter-code>
+    2. CATEGORY CLASSIFICATION:
+       - Output 'CATEGORY: GENERAL_QUERY' if they are asking for guidance, scheme details, tractor/agriculture subsidies, loans, land value, or general help.
+       - Output 'CATEGORY: GRIEVANCE' ONLY if they are explicitly reporting a broken utility (road, water pipe, street light), delay in official service delivery, or official corruption.
+
+    3. RESPONSE GENERATION:
+       - DIRECTLY answer the user's specific question: "{text_input}"
+       - Respond ENTIRELY in the same language as the spoken text.
+       - Use simple, conversational spoken language suitable for Voice/Audio playback.
+       - DO NOT use bullet points, asterisks (*), hash signs (#), or complex formatting so text-to-speech reads smoothly.
+
+    OUTPUT FORMAT STRICTLY:
+    LANGUAGE: <Language Name>
+    LANG_CODE: <2-letter ISO language code>
     CATEGORY: <GENERAL_QUERY or GRIEVANCE>
-    RESPONSE: <Your answer in their language>
+    RESPONSE: <Your answer directly addressing their question in detected language>
     """
     
     try:
-        # Pass the raw audio bytes directly to Gemini
-        audio_part = types.Part.from_bytes(data=audio_bytes, mime_type='audio/wav')
-        
         response = client.models.generate_content(
             model='gemini-3.5-flash-lite',
-            contents=[audio_part, prompt],
+            contents=prompt,
         )
         res_text = response.text.strip()
         
-        # Parse the structured response using regex
-        transcript_match = re.search(r"TRANSCRIPT:\s*(.*)", res_text, re.IGNORECASE)
-        tts_match = re.search(r"TTS_CODE:\s*(.*)", res_text, re.IGNORECASE)
-        cat_match = re.search(r"CATEGORY:\s*(.*)", res_text, re.IGNORECASE)
-        resp_match = re.search(r"RESPONSE:\s*(.*)", res_text, re.IGNORECASE | re.DOTALL)
-        
-        transcript = transcript_match.group(1).strip() if transcript_match else "Audio processed."
-        tts_code = tts_match.group(1).strip().lower() if tts_match else "hi"
-        category = "GRIEVANCE" if cat_match and "GRIEVANCE" in cat_match.group(1).upper() else "GENERAL_QUERY"
-        content = resp_match.group(1).strip() if resp_match else res_text
+        # Parse output fields
+        lang_name = "English"
+        lang_code = "en"
+        category = "GENERAL_QUERY"
+        content = res_text
+
+        lines = res_text.split("\n")
+        for line in lines:
+            if line.startswith("LANGUAGE:"):
+                lang_name = line.replace("LANGUAGE:", "").strip()
+            elif line.startswith("LANG_CODE:"):
+                lang_code = line.replace("LANG_CODE:", "").strip().lower()
+            elif line.startswith("CATEGORY:"):
+                category = "GRIEVANCE" if "GRIEVANCE" in line.upper() else "GENERAL_QUERY"
+
+        if "RESPONSE:" in res_text:
+            content = res_text.split("RESPONSE:", 1)[-1].strip()
             
-        return transcript, tts_code, category, content
+        return lang_name, lang_code, category, content
         
     except Exception as e:
         st.error(f"Gemini API Error: {e}")
-        return "Audio error", "hi", "FALLBACK_GRIEVANCE", "क्षमा करें, तकनीकी समस्या है। आपकी शिकायत दर्ज कर ली गई है।"
+        return "Unknown", "en", "FALLBACK_GRIEVANCE", "Your query has been forwarded to the officers for assistance."
 
-# --- PAGE CONFIGURATION & DARK THEME ---
+# --- SMTP EMAIL DISPATCH ---
+def dispatch_grievance_email(detected_lang, transcribed_text, ai_summary):
+    try:
+        sender_email = st.secrets["SYSTEM_ALERT_EMAIL"].strip()
+        sender_password = st.secrets["SYSTEM_ALERT_PASSWORD"].replace(" ", "").strip()
+        receiver_email = st.secrets["GRIEVANCE_OFFICER_EMAIL"].strip()
+    except Exception as e:
+        st.error(f"Secrets configuration missing: {e}")
+        return False
+    
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = f"New Grievance Registered ({detected_lang})"
+    
+    body = f"Spoken Input: {transcribed_text}\nDetected Language: {detected_lang}\nAI Response / Note: {ai_summary}"
+    msg.attach(MIMEText(body, 'plain'))
+    
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.ehlo()
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e1:
+        try:
+            server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, receiver_email, msg.as_string())
+            server.quit()
+            return True
+        except Exception as e2:
+            st.error(f"Email Dispatch Failed: {e1} | Fallback: {e2}")
+            return False
+
+# --- PAGE CONFIGURATION & CENTERED STYLING ---
 st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="centered")
 
 st.markdown("""
@@ -99,20 +164,14 @@ st.markdown("""
         box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.4);
         margin-bottom: 25px;
     }
-    .header-box h1 { margin: 0; font-size: 30px; font-weight: 800; color: #38BDF8; }
-    .card-container {
+    .header-box h1 { margin: 0; font-size: 32px; font-weight: 800; color: #38BDF8; }
+    
+    /* Center aligning container elements */
+    .center-card {
         background-color: #1E293B;
-        padding: 22px;
-        border-radius: 16px;
-        margin-bottom: 20px;
-        border-left: 6px solid #10B981;
-    }
-    /* Centered Pulse Mic Card */
-    .pulse-card {
-        background-color: #1E293B;
-        padding: 22px;
-        border-radius: 16px;
-        margin-bottom: 20px;
+        padding: 30px;
+        border-radius: 20px;
+        margin: 0 auto 20px auto;
         border: 2px solid #059669;
         text-align: center;
     }
@@ -124,12 +183,6 @@ st.markdown("""
         margin-top: 20px;
         text-align: center;
     }
-    div[data-baseweb="input"] {
-        background-color: #1E293B !important;
-        border-radius: 10px !important;
-    }
-    input { color: #FFFFFF !important; background-color: #1E293B !important; }
-    label { color: #E2E8F0 !important; font-weight: 600; }
     .stButton>button {
         width: 100%;
         height: 60px;
@@ -147,107 +200,62 @@ st.markdown("""
 st.markdown("""
     <div class="header-box">
         <h1>🌾 Grama Seva AI Hub</h1>
-        <p>Speak in any language! | ఏదైనా భాషలో మాట్లాడండి | किसी भी भाषा में बोलें</p>
+        <p>Multilingual Rural Voice Assistant | మాట్లాడండి / बोलें / Speak</p>
     </div>
     """, unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["🎙️ Speak & Listen", "📷 Document Scan"])
+# --- CENTERED VOICE INPUT UI ---
+st.markdown('<div class="center-card">', unsafe_allow_html=True)
+st.markdown("### 🎙️ Tap & Speak / మాట్లాడండి / बोलें")
+st.caption("Auto-detects Hindi, Telugu, English, Tamil, Kannada, Marathi & more")
 
-# --- SMTP EMAIL DISPATCH ---
-def dispatch_grievance_email(transcribed_text, ai_summary, citizen_name, citizen_address):
-    try:
-        sender_email = st.secrets["SYSTEM_ALERT_EMAIL"].strip()
-        sender_password = st.secrets["SYSTEM_ALERT_PASSWORD"].replace(" ", "").strip()
-        receiver_email = st.secrets["GRIEVANCE_OFFICER_EMAIL"].strip()
-    except Exception as e:
-        st.error(f"Secrets configuration missing: {e}")
-        return False
-    
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-    msg['Subject'] = f"Grievance/Unresolved Query: {citizen_name}"
-    
-    body = f"Citizen Name: {citizen_name}\nAddress: {citizen_address}\nSpoken Input: {transcribed_text}\nAI Note/Summary: {ai_summary}"
-    msg.attach(MIMEText(body, 'plain'))
-    
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
-        server.ehlo()
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, receiver_email, msg.as_string())
-        server.quit()
-        return True
-    except Exception as e1:
-        return False
+# Center audio input control
+col1, col2, col3 = st.columns([1, 4, 1])
+with col2:
+    audio_file = st.audio_input("Record Voice")
+st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB 1: VOICE PORTAL ---
-with tab1:
-    st.markdown('<div class="card-container">', unsafe_allow_html=True)
-    st.subheader("📝 Citizen Identity / पहचान")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        farmer_name = st.text_input("👤 Full Name *")
-    with col_b:
-        farmer_address = st.text_input("🏠 Village & Address *")
-    st.markdown('</div>', unsafe_allow_html=True)
+if audio_file:
+    audio_bytes = audio_file.read()
     
-    st.markdown('<div class="pulse-card">', unsafe_allow_html=True)
-    st.markdown("<h3>🎙️ Tap Mic to Speak (Auto-detects language)</h3>", unsafe_allow_html=True)
-    
-    # 🎯 CENTER THE AUDIO INPUT USING COLUMNS
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        audio_file = st.audio_input("Record", label_visibility="hidden")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    if audio_file:
-        audio_bytes = audio_file.read()
+    with st.spinner("Recognizing speech..."):
+        user_text = transcribe_actual_audio(audio_bytes)
+        
+    if user_text:
+        st.info(f'🎙️ **You Said:** "{user_text}"')
+        
+        # CENTERED PROCESS BUTTON
+        btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
+        with btn_col2:
+            process_btn = st.button("🔊 Process & Respond", use_container_width=True)
             
-        if farmer_name.strip() and farmer_address.strip():
-            if st.button("🔊 Process & Listen (Submit)"):
-                with st.spinner("Analyzing audio and detecting language..."):
+        if process_btn:
+            with st.spinner("Analyzing query and language..."):
+                lang_name, lang_code, category, result_content = process_citizen_input_auto(user_text)
+                
+                st.success(f"🌐 **Detected Language:** {lang_name}")
+                
+                if category == "GENERAL_QUERY":
+                    st.markdown(f"### 💡 **AI Response ({lang_name}):**")
+                    st.write(result_content)
                     
-                    # Pass bytes directly to Gemini 
-                    transcript, tts_code, category, result_content = process_audio_with_gemini(audio_bytes)
+                    audio_stream = generate_speech_audio(result_content, gtts_lang_code=lang_code)
+                    if audio_stream:
+                        st.markdown('<div class="wave-card">', unsafe_allow_html=True)
+                        st.subheader("🔊 Listen to Answer:")
+                        st.audio(audio_stream, format="audio/mp3", autoplay=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                        
+                elif category in ["GRIEVANCE", "FALLBACK_GRIEVANCE"]:
+                    st.warning("🚨 Routing request to Grievance Officer via Email...")
+                    email_status = dispatch_grievance_email(lang_name, user_text, result_content)
                     
-                    st.info(f'🎙️ **Transcript (Detected by AI):** "{transcript}"')
+                    if email_status:
+                        st.success("📧 Email successfully sent to Grievance Officer!")
                     
-                    if category == "GENERAL_QUERY":
-                        st.success("💡 **AI Mitra Response:**")
-                        st.write(result_content)
-                        
-                        audio_stream = generate_speech_audio(result_content, tts_code)
-                        if audio_stream:
-                            st.markdown('<div class="wave-card">', unsafe_allow_html=True)
-                            st.subheader("🔊 Listen to Answer:")
-                            st.audio(audio_stream, format="audio/mp3", autoplay=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                            
-                    elif category in ["GRIEVANCE", "FALLBACK_GRIEVANCE"]:
-                        st.warning("🚨 Routing request to Grievance Officer via Email...")
-                        email_status = dispatch_grievance_email(
-                            transcript, result_content, farmer_name, farmer_address
-                        )
-                        
-                        if email_status:
-                            st.success("📧 Email successfully sent to Grievance Officer!")
-                        
-                        st.info(result_content)
-                        audio_stream = generate_speech_audio(result_content, tts_code)
-                        if audio_stream:
-                            st.markdown('<div class="wave-card">', unsafe_allow_html=True)
-                            st.audio(audio_stream, format="audio/mp3", autoplay=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ Please fill in Name and Address fields above before submitting.")
-
-# --- TAB 2: DOCUMENT SCANNER ---
-with tab2:
-    st.subheader("📷 Land Record & Document Capture")
-    uploaded_image = st.camera_input("Snap picture of document")
-    if uploaded_image:
-        image = Image.open(uploaded_image)
-        st.image(image, caption="Captured Record", use_container_width=True)
-        st.success("Document attached successfully.")
+                    st.info(result_content)
+                    audio_stream = generate_speech_audio(result_content, gtts_lang_code=lang_code)
+                    if audio_stream:
+                        st.markdown('<div class="wave-card">', unsafe_allow_html=True)
+                        st.audio(audio_stream, format="audio/mp3", autoplay=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
