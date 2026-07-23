@@ -68,7 +68,7 @@ def process_citizen_input(text_input, language_name):
     
     try:
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-1.5-flash',
             contents=prompt,
         )
         res_text = response.text.strip()
