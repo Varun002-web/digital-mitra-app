@@ -6,26 +6,16 @@ import speech_recognition as sr
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from PIL import Image
-import google.generativeai as genai
+from google import genai
 from gtts import gTTS
 
-# --- INITIALIZE GEMINI AI CLIENT ---
+# --- INITIALIZE GEMINI AI CLIENT (NEW SDK) ---
 try:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    
-    # Auto-select the first available working model to avoid 404 errors
-    available_models = [
-        m.name for m in genai.list_models() 
-        if 'generateContent' in m.supported_generation_methods
-    ]
-    
-    if available_models:
-        # Uses the first valid model found for your API key (e.g., models/gemini-1.5-flash)
-        model = genai.GenerativeModel(available_models[0])
-    else:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+    api_key = st.secrets["GEMINI_API_KEY"]
+    client = genai.Client(api_key=api_key)
 except Exception as e:
     st.error(f"Gemini Configuration Error: {e}")
+
 # --- SPEECH RECOGNITION ENGINE ---
 def transcribe_actual_audio(audio_bytes, target_language_code):
     recognizer = sr.Recognizer()
@@ -62,8 +52,8 @@ def process_citizen_input(text_input, language_name):
 
     INSTRUCTIONS:
     1. CATEGORY CLASSIFICATION:
-       - Output 'CATEGORY: GENERAL_QUERY' if they are asking for guidance, scheme details, land value/registration info, subsidies, agricultural rules, or general help.
-       - Output 'CATEGORY: GRIEVANCE' ONLY if they are reporting a broken utility (road, water pipe, street light), delay in government service delivery, or official corruption.
+       - Output 'CATEGORY: GENERAL_QUERY' if they are asking for guidance, scheme details, tractor/agriculture subsidies, loans, land value, or general help.
+       - Output 'CATEGORY: GRIEVANCE' ONLY if they are explicitly reporting a broken utility (road, water pipe, street light), delay in official service delivery, or official corruption.
 
     2. RESPONSE GENERATION:
        - DIRECTLY answer the user's specific question: "{text_input}"
@@ -77,7 +67,10 @@ def process_citizen_input(text_input, language_name):
     """
     
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt,
+        )
         res_text = response.text.strip()
         
         category = "GRIEVANCE" if "CATEGORY: GRIEVANCE" in res_text.upper() else "GENERAL_QUERY"
@@ -94,18 +87,15 @@ def process_citizen_input(text_input, language_name):
         fallback_msg = f"మీ ప్రశ్న ('{text_input}') పరిశీలించబడుతోంది. మీ సందేహాల నివృత్తికై సమీపంలో ఉన్న ప్రభుత్వ సేవా కేంద్రాన్ని సంప్రదించండి."
         return "FALLBACK_GRIEVANCE", fallback_msg
 
-# --- PAGE CONFIGURATION & DARK THEME WITH HIGH-CONTRAST INPUTS ---
+# --- PAGE CONFIGURATION & DARK THEME ---
 st.set_page_config(page_title="Grameena Seva AI", page_icon="🌾", layout="centered")
 
 st.markdown("""
     <style>
-    /* Global App Background */
     .stApp {
         background-color: #0F172A;
         color: #F8FAFC;
     }
-    
-    /* Header Banner */
     .header-box {
         background: linear-gradient(135deg, #1E293B, #334155);
         border: 1px solid #475569;
@@ -116,54 +106,21 @@ st.markdown("""
         box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.4);
         margin-bottom: 25px;
     }
-    .header-box h1 {
-        margin: 0;
-        font-size: 30px;
-        font-weight: 800;
-        color: #38BDF8;
-    }
-    .header-box p {
-        margin-top: 6px;
-        font-size: 16px;
-        color: #94A3B8;
-    }
-
-    /* Standard Card Container */
+    .header-box h1 { margin: 0; font-size: 30px; font-weight: 800; color: #38BDF8; }
     .card-container {
         background-color: #1E293B;
         padding: 22px;
         border-radius: 16px;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.3);
         margin-bottom: 20px;
         border-left: 6px solid #10B981;
-        border-top: 1px solid #334155;
-        border-right: 1px solid #334155;
-        border-bottom: 1px solid #334155;
     }
-
-    /* 🎙️ PULSE ANIMATION FOR VOICE RECORDING SECTION */
     .pulse-card {
         background-color: #1E293B;
         padding: 22px;
         border-radius: 16px;
         margin-bottom: 20px;
         border: 2px solid #059669;
-        animation: pulse-border 2s infinite;
     }
-
-    @keyframes pulse-border {
-        0% {
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
-        }
-        70% {
-            box-shadow: 0 0 0 15px rgba(16, 185, 129, 0);
-        }
-        100% {
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-        }
-    }
-
-    /* 🔊 WAVE ANIMATION FOR AUDIO PLAYER CONTAINER */
     .wave-card {
         background: linear-gradient(135deg, #1E293B, #0F172A);
         border: 2px solid #F59E0B;
@@ -171,43 +128,14 @@ st.markdown("""
         border-radius: 16px;
         margin-top: 20px;
         text-align: center;
-        animation: wave-glow 2.5s infinite alternate;
     }
-
-    @keyframes wave-glow {
-        0% {
-            border-color: #10B981;
-            box-shadow: 0px 0px 10px rgba(16, 185, 129, 0.3);
-        }
-        50% {
-            border-color: #F59E0B;
-            box-shadow: 0px 0px 20px rgba(245, 158, 11, 0.5);
-        }
-        100% {
-            border-color: #10B981;
-            box-shadow: 0px 0px 10px rgba(16, 185, 129, 0.3);
-        }
-    }
-
-    /* High-contrast text input elements */
     div[data-baseweb="input"], div[data-baseweb="select"] {
         background-color: #1E293B !important;
         border-radius: 10px !important;
     }
-    input {
-        color: #FFFFFF !important;
-        background-color: #1E293B !important;
-    }
-    div[data-baseweb="select"] * {
-        color: #FFFFFF !important;
-        background-color: #1E293B !important;
-    }
-    label {
-        color: #E2E8F0 !important;
-        font-weight: 600;
-    }
-
-    /* Submit Button Styling */
+    input { color: #FFFFFF !important; background-color: #1E293B !important; }
+    div[data-baseweb="select"] * { color: #FFFFFF !important; background-color: #1E293B !important; }
+    label { color: #E2E8F0 !important; font-weight: 600; }
     .stButton>button {
         width: 100%;
         height: 60px;
@@ -217,12 +145,6 @@ st.markdown("""
         font-weight: 800;
         font-size: 20px;
         border: none;
-        box-shadow: 0px 6px 15px rgba(217, 119, 6, 0.4);
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0px 8px 20px rgba(245, 158, 11, 0.6);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -235,14 +157,13 @@ st.markdown("""
     </div>
     """, unsafe_allow_html=True)
 
-# Supported Languages Mapping
 languages_map = {
     "Telugu (తెలుగు)": {"stt": "te-IN", "tts": "te"},
     "Hindi (हिन्दी)": {"stt": "hi-IN", "tts": "hi"},
     "English": {"stt": "en-IN", "tts": "en"},
     "Tamil (தமிழ்)": {"stt": "ta-IN", "tts": "ta"},
     "Kannada (కన్నడ)": {"stt": "kn-IN", "tts": "kn"},
-    "Marathi (మరాठी)": {"stt": "mr-IN", "tts": "mr"},
+    "Marathi (మరాఠీ)": {"stt": "mr-IN", "tts": "mr"},
     "Bengali (বাংলা)": {"stt": "bn-IN", "tts": "bn"},
     "Gujarati (ગુજરાતી)": {"stt": "gu-IN", "tts": "gu"},
     "Malayalam (മലയാളം)": {"stt": "ml-IN", "tts": "ml"},
